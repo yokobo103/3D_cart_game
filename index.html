@@ -142,7 +142,7 @@
       position: fixed;
       left: 16px;
       bottom: 16px;
-      z-index: 5;
+      z-index: 12;
       max-width: 480px;
       padding: 12px 14px;
       border: 1px solid var(--line);
@@ -152,6 +152,16 @@
       font-weight: 800;
       line-height: 1.45;
       pointer-events: none;
+    }
+
+    .hintControls {
+      color: #ffffff;
+    }
+
+    .hintMessage {
+      margin-top: 4px;
+      color: #9eddf0;
+      font-size: 13px;
     }
 
     .countdown,
@@ -599,7 +609,15 @@
       .value { font-size: 22px; }
       .itemIcon { width: 118px; height: 118px; }
       .itemValue { font-size: 12px; }
-      .hint { display: none; }
+      .hint {
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        max-width: none;
+        padding: 9px 10px;
+        font-size: 12px;
+      }
+      .hintMessage { font-size: 11px; }
       .selectScreen { padding: 8px; overflow: auto; }
       .selectBox {
         height: auto;
@@ -631,7 +649,10 @@
     <div class="panel"><span class="label">ITEM</span><span class="value itemValue" id="item"><span class="itemIcon">-</span><span class="itemName">なし</span></span></div>
   </section>
 
-  <div class="hint" id="hint">↑ 加速 / ↓ ブレーキ / ←→ ハンドル / Space アイテム。道路メッシュと判定は同じ中心線から生成しています。</div>
+  <div class="hint" id="hint">
+    <div class="hintControls">↑ 加速 / ↓ ブレーキ / ←→ ハンドル / Space アイテム。</div>
+    <div class="hintMessage" id="hintMessage">道路メッシュと判定は同じ中心線から生成しています。</div>
+  </div>
   <div class="countdown hidden" id="countdown"><div class="count">3</div></div>
   <div class="goal hidden" id="goal">
     <div class="goalBox">
@@ -713,7 +734,7 @@
       rank: document.getElementById("rank"),
       speed: document.getElementById("speed"),
       item: document.getElementById("item"),
-      hint: document.getElementById("hint"),
+      hint: document.getElementById("hintMessage"),
       countdown: document.getElementById("countdown"),
       goal: document.getElementById("goal"),
       goalText: document.getElementById("goalText"),
@@ -1448,7 +1469,7 @@
       ui.countdown.classList.remove("hidden");
       resetRaceRuntime();
       audio.startRace();
-      ui.hint.textContent = "↑ 加速 / ↓ ブレーキ / ←→ ハンドル / Space アイテム。";
+      ui.hint.textContent = "アイテム箱を取るとSpaceで使えます。";
     }
 
     async function loadKartTemplate(path) {
