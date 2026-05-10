@@ -634,12 +634,22 @@
         gap: 10px;
       }
       .selectStage { grid-template-columns: 1fr; }
-      .racerCard { padding: 12px; }
       .previewPanel { min-height: 190px; order: -1; }
       .colorDock { grid-template-columns: 1fr; }
+      .selectFooter { grid-template-columns: 1fr; }
+      body.isMobile .selectBox {
+        display: flex;
+        flex-direction: column;
+      }
+      body.isMobile .selectStage { display: contents; }
+      body.isMobile .selectHeader { order: 0; }
+      body.isMobile .previewPanel { order: 1; }
+      body.isMobile .selectStage .racerCard { order: 2; }
+      body.isMobile .colorDock { order: 3; }
+      body.isMobile .selectFooter { order: 4; }
+      .racerCard { padding: 12px; }
       .colorChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .colorChoices .choice { min-height: 82px; }
-      .selectFooter { grid-template-columns: 1fr; }
       .startButton { width: 100%; }
 
       body.isMobile.isDriving .mobileControls {
@@ -2114,8 +2124,10 @@ GEO -- TEX --</div>
       if (Array.isArray(material)) return material.map((mat) => simplifyMaterialForMobile(mat));
       if (!material || !currentQuality().basicMaterials) return material;
       if (material.isMeshBasicMaterial) return material;
+      const map = material.map ? makeMobileTexture(material.map) : null;
       const basic = new THREE.MeshBasicMaterial({
         color: material.color ? material.color.clone() : new THREE.Color(0xffffff),
+        map,
         side: material.side,
         transparent: false,
         opacity: 1,
@@ -2479,7 +2491,6 @@ GEO -- TEX --</div>
           `DT ${(perfState.deltaTime * 1000).toFixed(0)} MAX ${(perfState.maxDeltaTime * 1000).toFixed(0)}`,
           `CALL ${info.drawCalls} TRI ${info.triangles}`,
           `GEO ${info.geometries} TEX ${info.textures} RS ${getMobileRenderScale()}`,
-          `TEST ${activePerfTests || "base"}`,
           formatPhaseStats(),
           perfState.sectionDisplay
         ].join("\n");
