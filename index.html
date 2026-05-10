@@ -766,6 +766,17 @@
         backdrop-filter: none;
       }
 
+      body.isMobile .selectScreen:not(.hidden) ~ .hint,
+      body.isMobile:not(.isDriving) .hint {
+        display: none;
+      }
+
+      body.isMobile .previewPanel {
+        position: sticky;
+        top: 8px;
+        z-index: 3;
+      }
+
       body.isMobile .brand,
       body.isMobile .value,
       body.isMobile .selectHeader h1,
@@ -961,16 +972,15 @@ GEO -- TEX --</div>
     const MOBILE_RENDER_SCALE = 0.75;
     const MOBILE_TEXTURE_MAX_SIZE = 1024;
     const PERF_TEST = {
-      disableCssHud: false,
-      disableMobileButtons: false,
-      disableTrackLines: false,
-      disableItemBoxes: false,
-      hideHud: false,
-      hideMobileControls: false,
-      hideDebugOverlay: false,
-      hideTrackLines: false,
-      hideRoadShoulder: false,
+      hideOpponentCars: false,
       hideItemBoxes: false,
+      hideCones: false,
+      hideTrackLines: false,
+      hideRoadMarks: false,
+      hideBackgroundGrid: false,
+      hideHud: false,
+      hideDebugOverlay: false,
+      hideMobileControls: false,
       lowResCanvas: true,
       carOnly: false,
       disableAllEffects: false,
@@ -1023,6 +1033,7 @@ GEO -- TEX --</div>
         fog: false
       }
     };
+    applyPerfTestFromQuery();
     const perfState = {
       element: null,
       frameCount: 0,
@@ -1153,6 +1164,13 @@ GEO -- TEX --</div>
     scene.background = new THREE.Color(0x07111d);
     const desktopSceneFog = new THREE.Fog(0x07111d, 42, 105);
     scene.fog = currentQuality().fog === false ? null : desktopSceneFog;
+    const sceneGroups = {
+      trackLines: new THREE.Group(),
+      roadMarks: new THREE.Group(),
+      backgroundGrid: new THREE.Group(),
+      cones: new THREE.Group()
+    };
+    Object.values(sceneGroups).forEach((group) => scene.add(group));
 
     const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 260);
     const renderer = new THREE.WebGLRenderer({
@@ -1235,7 +1253,9 @@ GEO -- TEX --</div>
     prepareSelectionScene();
     initPerfOverlay();
     syncPerfTestClasses();
+    applyPerfVisibility();
     requestAnimationFrame(loop);
+    startPerfAutoRunIfRequested();
 
     window.addEventListener("resize", onResize);
     document.addEventListener("visibilitychange", () => {
@@ -1269,6 +1289,37 @@ GEO -- TEX --</div>
 
     function currentQuality() {
       return isMobile ? QUALITY.mobile : QUALITY.desktop;
+    }
+
+    function applyPerfTestFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const active = params.get("perf") || params.get("perfTest");
+      if (active && Object.prototype.hasOwnProperty.call(PERF_TEST, active)) {
+        PERF_TEST[active] = true;
+      }
+      Object.keys(PERF_TEST).forEach((key) => {
+        if (!params.has(key)) return;
+        const value = params.get(key);
+        PERF_TEST[key] = value === "" || value === "1" || value === "true";
+      });
+      window.PERF_TEST = PERF_TEST;
+      window.setPerfTest = (key, value = true) => {
+        if (!Object.prototype.hasOwnProperty.call(PERF_TEST, key)) return false;
+        PERF_TEST[key] = Boolean(value);
+        syncPerfTestClasses();
+        applyPerfVisibility();
+        return true;
+      };
+    }
+
+    function startPerfAutoRunIfRequested() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("perfAuto") !== "1") return;
+      window.__perfSamples = [];
+      setTimeout(() => {
+        if (state.phase === "select") startRace();
+        keys.add("ArrowUp");
+      }, 250);
     }
 
     function getRenderPixelRatio() {
@@ -1305,6 +1356,7 @@ GEO -- TEX --</div>
       sun.castShadow = currentQuality().shadows;
       scene.fog = currentQuality().fog === false ? null : desktopSceneFog;
       updatePerfOverlayVisibility();
+      applyPerfVisibility();
     }
 
     function syncMobileUiState() {
@@ -1315,9 +1367,29 @@ GEO -- TEX --</div>
     }
 
     function syncPerfTestClasses() {
-      document.body.classList.toggle("perfNoHud", isMobile && (PERF_TEST.disableCssHud || PERF_TEST.hideHud));
-      document.body.classList.toggle("perfNoButtons", isMobile && (PERF_TEST.disableMobileButtons || PERF_TEST.hideMobileControls));
+      document.body.classList.toggle("perfNoHud", isMobile && PERF_TEST.hideHud);
+      document.body.classList.toggle("perfNoButtons", isMobile && PERF_TEST.hideMobileControls);
       document.body.classList.toggle("perfNoDebug", isMobile && PERF_TEST.hideDebugOverlay);
+    }
+
+    function applyPerfVisibility() {
+      if (!isMobile) return;
+      const inRace = state.phase === "countdown" || state.phase === "race";
+      const farLimit = 42;
+      sceneGroups.trackLines.visible = !PERF_TEST.hideTrackLines;
+      sceneGroups.roadMarks.visible = !PERF_TEST.hideRoadMarks;
+      sceneGroups.backgroundGrid.visible = !PERF_TEST.hideBackgroundGrid;
+      sceneGroups.cones.visible = !PERF_TEST.hideCones;
+      sceneGroups.cones.children.forEach((cone) => {
+        cone.visible = !PERF_TEST.hideCones && (!inRace || distanceXZ(cone.position, player) <= farLimit);
+      });
+      rival.group.visible = !PERF_TEST.hideOpponentCars && (!inRace || distanceXZ(rival, player) <= farLimit);
+      items.forEach((item) => {
+        item.mesh.visible = !PERF_TEST.hideItemBoxes
+          && item.cool <= 0
+          && (!inRace || distanceXZ(item.mesh.position, player) <= farLimit);
+      });
+      syncPerfTestClasses();
     }
 
     function setHint(text) {
@@ -1462,7 +1534,7 @@ GEO -- TEX --</div>
       grid.material.transparent = true;
       grid.material.opacity = 0.22;
       grid.position.y = 0.01;
-      scene.add(grid);
+      sceneGroups.backgroundGrid.add(grid);
     }
 
     function addTrack() {
@@ -1509,17 +1581,17 @@ GEO -- TEX --</div>
         [roadWidth / 2 - 0.45, 0xffffff, 0.06, 0.09],
         [-(roadWidth / 2 - 0.45), 0xffffff, 0.06, 0.09]
       ];
-      if (!isMobile || !(PERF_TEST.disableTrackLines || PERF_TEST.hideTrackLines || PERF_TEST.carOnly)) {
-        const lineCount = PERF_TEST.hideRoadShoulder ? Math.min(1, currentQuality().trackLines) : currentQuality().trackLines;
-        trackLineDefs.slice(0, lineCount).forEach(([offset, color, height, radius]) => {
-          addTrackLine(offset, color, height, radius);
+      if (!isMobile || !(PERF_TEST.hideTrackLines || PERF_TEST.carOnly)) {
+        const lineCount = currentQuality().trackLines;
+        trackLineDefs.slice(0, lineCount).forEach(([offset, color, height, radius], index) => {
+          addTrackLine(offset, color, height, radius, index < 2 ? sceneGroups.trackLines : sceneGroups.roadMarks);
         });
       }
       if (Number.isFinite(currentQuality().dashStep)) addDashes();
       addStartGate();
     }
 
-    function addTrackLine(offset, color, height, radius) {
+    function addTrackLine(offset, color, height, radius, targetGroup) {
       const points = samples.map((sample) => {
         const normal = sideNormal(sample.tangent);
         return sample.point.clone().addScaledVector(normal, offset).setY(height);
@@ -1532,7 +1604,7 @@ GEO -- TEX --</div>
           opacity: currentQuality().trackLineTransparent ? 0.92 : 1
         })
       );
-      scene.add(line);
+      targetGroup.add(line);
 
       const glowStep = currentQuality().trackGlowStep;
       if (Number.isFinite(glowStep)) {
@@ -1542,7 +1614,7 @@ GEO -- TEX --</div>
             new THREE.MeshBasicMaterial({ color })
           );
           glow.position.copy(points[i]);
-          scene.add(glow);
+          targetGroup.add(glow);
         }
       }
     }
@@ -1556,7 +1628,7 @@ GEO -- TEX --</div>
         );
         dash.position.copy(sample.point).setY(0.11);
         dash.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
-        scene.add(dash);
+        sceneGroups.roadMarks.add(dash);
       }
     }
 
@@ -1574,7 +1646,7 @@ GEO -- TEX --</div>
         block.position.x = i * 0.62;
         stripeGroup.add(block);
       }
-      scene.add(stripeGroup);
+      sceneGroups.roadMarks.add(stripeGroup);
 
       const sign = makeCanvasSign("YOKOBO AI LAB", 512, 128, "#43ddff");
       sign.position.copy(start.point).add(new THREE.Vector3(0, 7.5, 0)).addScaledVector(start.tangent, 3);
@@ -1637,7 +1709,7 @@ GEO -- TEX --</div>
         cone.position.copy(sample.point).addScaledVector(normal, side * (roadWidth / 2 + 1.4));
         cone.position.y = 0.58;
         cone.castShadow = currentQuality().shadows;
-        scene.add(cone);
+        sceneGroups.cones.add(cone);
       }
     }
 
@@ -1674,7 +1746,7 @@ GEO -- TEX --</div>
     }
 
     function addItems() {
-      if (isMobile && (PERF_TEST.disableItemBoxes || PERF_TEST.hideItemBoxes || PERF_TEST.carOnly)) return;
+      if (isMobile && (PERF_TEST.hideItemBoxes || PERF_TEST.carOnly)) return;
       const itemAt = [0.18, 0.42, 0.72].map((p) => sampleAtProgress(p));
       itemAt.forEach((sample) => {
         const mesh = makeItemBox();
@@ -1697,13 +1769,15 @@ GEO -- TEX --</div>
       const group = new THREE.Group();
       const cube = new THREE.Mesh(
         new THREE.BoxGeometry(1.6, 1.6, 1.6),
-        new THREE.MeshStandardMaterial({
-          color: 0x1c566f,
-          emissive: 0x116d94,
-          emissiveIntensity: isMobile ? 0.25 : 0.8,
-          roughness: 0.35,
-          metalness: 0.25
-        })
+        isMobile
+          ? new THREE.MeshBasicMaterial({ color: 0x1c566f })
+          : new THREE.MeshStandardMaterial({
+              color: 0x1c566f,
+              emissive: 0x116d94,
+              emissiveIntensity: 0.8,
+              roughness: 0.35,
+              metalness: 0.25
+            })
       );
       cube.castShadow = currentQuality().shadows;
       group.add(cube);
@@ -2040,15 +2114,11 @@ GEO -- TEX --</div>
       if (Array.isArray(material)) return material.map((mat) => simplifyMaterialForMobile(mat));
       if (!material || !currentQuality().basicMaterials) return material;
       if (material.isMeshBasicMaterial) return material;
-      const map = material.map ? makeMobileTexture(material.map) : null;
-      const alphaMap = material.alphaMap ? makeMobileTexture(material.alphaMap) : null;
       const basic = new THREE.MeshBasicMaterial({
         color: material.color ? material.color.clone() : new THREE.Color(0xffffff),
-        map,
-        alphaMap,
         side: material.side,
-        transparent: Boolean(material.transparent && material.opacity < 1),
-        opacity: material.opacity ?? 1,
+        transparent: false,
+        opacity: 1,
         alphaTest: material.alphaTest || 0
       });
       basic.name = material.name;
@@ -2205,7 +2275,9 @@ GEO -- TEX --</div>
 
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(2.2, 0.62, 3.35),
-        new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.42, metalness: 0.15 })
+        isMobile
+          ? new THREE.MeshBasicMaterial({ color: bodyColor })
+          : new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.42, metalness: 0.15 })
       );
       body.position.y = 0.56;
       body.castShadow = currentQuality().shadows;
@@ -2213,13 +2285,17 @@ GEO -- TEX --</div>
 
       const nose = new THREE.Mesh(
         new THREE.BoxGeometry(1.55, 0.46, 1.6),
-        new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.38, metalness: 0.12 })
+        isMobile
+          ? new THREE.MeshBasicMaterial({ color: bodyColor })
+          : new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.38, metalness: 0.12 })
       );
       nose.position.set(0, 0.72, 0.86);
       nose.castShadow = currentQuality().shadows;
       group.add(nose);
 
-      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x101015, roughness: 0.68, metalness: 0.1 });
+      const wheelMat = isMobile
+        ? new THREE.MeshBasicMaterial({ color: 0x101015 })
+        : new THREE.MeshStandardMaterial({ color: 0x101015, roughness: 0.68, metalness: 0.1 });
       [[-1.38, 0.42, 1.08], [1.38, 0.42, 1.08], [-1.38, 0.42, -1.08], [1.38, 0.42, -1.08]].forEach(([x, y, z]) => {
         const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.38, 24), wheelMat);
         wheel.rotation.z = Math.PI / 2;
@@ -2240,7 +2316,9 @@ GEO -- TEX --</div>
 
     function makeCatDriver() {
       const group = new THREE.Group();
-      const fur = new THREE.MeshStandardMaterial({ color: 0xd69b55, roughness: 0.8 });
+      const fur = isMobile
+        ? new THREE.MeshBasicMaterial({ color: 0xd69b55 })
+        : new THREE.MeshStandardMaterial({ color: 0xd69b55, roughness: 0.8 });
       const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 18), fur);
       head.scale.set(1.05, 0.9, 0.95);
       head.castShadow = currentQuality().shadows;
@@ -2253,7 +2331,9 @@ GEO -- TEX --</div>
       });
       const coat = new THREE.Mesh(
         new THREE.BoxGeometry(0.85, 0.55, 0.62),
-        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 })
+        isMobile
+          ? new THREE.MeshBasicMaterial({ color: 0xffffff })
+          : new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 })
       );
       coat.position.y = -0.54;
       coat.castShadow = currentQuality().shadows;
@@ -2272,7 +2352,9 @@ GEO -- TEX --</div>
 
     function makeRobotDriver() {
       const group = new THREE.Group();
-      const shell = new THREE.MeshStandardMaterial({ color: 0xe8fbff, roughness: 0.36, metalness: 0.35 });
+      const shell = isMobile
+        ? new THREE.MeshBasicMaterial({ color: 0xe8fbff })
+        : new THREE.MeshStandardMaterial({ color: 0xe8fbff, roughness: 0.36, metalness: 0.35 });
       const head = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.72, 0.62), shell);
       head.castShadow = currentQuality().shadows;
       group.add(head);
@@ -2385,6 +2467,10 @@ GEO -- TEX --</div>
       perfState.frameSamples = 0;
       flushPerfSections();
       const info = perfState.lastInfo || getRendererInfo();
+      const activePerfTests = Object.entries(PERF_TEST)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key)
+        .join(",");
       if (perfState.element && isMobile) {
         perfState.element.textContent = [
           `FPS ${perfState.instant.toFixed(0)} AVG ${perfState.average.toFixed(0)}`,
@@ -2393,13 +2479,14 @@ GEO -- TEX --</div>
           `DT ${(perfState.deltaTime * 1000).toFixed(0)} MAX ${(perfState.maxDeltaTime * 1000).toFixed(0)}`,
           `CALL ${info.drawCalls} TRI ${info.triangles}`,
           `GEO ${info.geometries} TEX ${info.textures} RS ${getMobileRenderScale()}`,
+          `TEST ${activePerfTests || "base"}`,
           formatPhaseStats(),
           perfState.sectionDisplay
         ].join("\n");
       }
       if (now - perfState.lastLog >= PERF_LOG_INTERVAL_MS) {
         perfState.lastLog = now;
-        console.info("[perf:fps]", {
+        const sample = {
           fps: Number(perfState.instant.toFixed(1)),
           average: Number(perfState.average.toFixed(1)),
           mobile: isMobile,
@@ -2417,8 +2504,11 @@ GEO -- TEX --</div>
           rafWaitMs: Number(perfState.rafWaitMs.toFixed(2)),
           deltaTimeMs: Number((perfState.deltaTime * 1000).toFixed(1)),
           maxDeltaTimeMs: Number((perfState.maxDeltaTime * 1000).toFixed(1)),
+          activePerfTests: activePerfTests || "base",
           perfTest: PERF_TEST
-        });
+        };
+        window.__perfSamples?.push(sample);
+        console.info("[perf:fps]", sample);
       }
       perfState.maxDeltaTime = 0;
     }
@@ -2557,6 +2647,7 @@ GEO -- TEX --</div>
 
     function update(dt) {
       syncMobileUiState();
+      applyPerfVisibility();
       if (state.phase === "countdown" || state.phase === "race") {
         state.sceneElapsed += dt;
         if (!PERF_TEST.disableAllEffects && (!isMobile || state.sceneElapsed >= currentQuality().sceneInterval)) {
@@ -2885,9 +2976,11 @@ GEO -- TEX --</div>
     function animateScene(dt) {
       const now = performance.now();
       items.forEach((item) => {
-        item.mesh.rotation.y += dt * 1.9;
-        item.mesh.position.y = item.mesh.userData.baseY + Math.sin(now / 260) * 0.18;
-        if (item.cool <= 0) item.mesh.visible = true;
+        if (!isMobile || !PERF_TEST.hideItemBoxes) {
+          item.mesh.rotation.y += isMobile ? dt * 0.7 : dt * 1.9;
+          item.mesh.position.y = item.mesh.userData.baseY + (isMobile ? 0 : Math.sin(now / 260) * 0.18);
+        }
+        if (!isMobile && item.cool <= 0) item.mesh.visible = true;
       });
       traps.forEach((trap) => {
         if (trap.life !== Infinity) trap.life -= dt;
@@ -2928,9 +3021,7 @@ GEO -- TEX --</div>
     function render() {
       renderPreview();
       if (isMobile && state.phase === "select") return;
-      if (isMobile && (PERF_TEST.disableItemBoxes || PERF_TEST.hideItemBoxes)) {
-        items.forEach((item) => item.mesh.visible = false);
-      }
+      applyPerfVisibility();
       renderer.render(scene, camera);
       perfState.lastInfo = getRendererInfo();
     }
