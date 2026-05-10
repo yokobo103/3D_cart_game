@@ -702,7 +702,7 @@
         padding: 0;
         border: 1px solid rgba(120, 229, 255, 0.5);
         border-radius: 50%;
-        background: rgba(5, 17, 28, 0.82);
+        background: #06111d;
         color: #e8fbff;
         box-shadow: 0 5px 0 rgba(0, 0, 0, 0.34), inset 0 0 16px rgba(67, 221, 255, 0.12);
         font-size: 14px;
@@ -722,7 +722,7 @@
         width: 88px;
         height: 88px;
         border-color: rgba(255, 216, 68, 0.7);
-        background: rgba(255, 216, 68, 0.9);
+        background: #ead054;
         color: #08121b;
         font-size: 16px;
       }
@@ -801,6 +801,10 @@
       }
 
       body.isMobile.perfNoButtons .mobileControls {
+        display: none;
+      }
+
+      body.isMobile.perfNoDebug .perfOverlay {
         display: none;
       }
     }
@@ -955,12 +959,21 @@ GEO -- TEX --</div>
     let mobileDrivingActive = false;
     const SHOW_PERF_OVERLAY = true;
     const PERF_LOG_INTERVAL_MS = 5000;
+    const MOBILE_RENDER_SCALE = 0.75;
     const MOBILE_TEXTURE_MAX_SIZE = 1024;
     const PERF_TEST = {
       disableCssHud: false,
       disableMobileButtons: false,
       disableTrackLines: false,
       disableItemBoxes: false,
+      hideHud: false,
+      hideMobileControls: false,
+      hideDebugOverlay: false,
+      hideTrackLines: false,
+      hideRoadShoulder: false,
+      hideItemBoxes: false,
+      lowResCanvas: true,
+      carOnly: false,
       disableAllEffects: false,
       freezeCamera: false,
       renderEveryOtherFrame: false
@@ -1140,8 +1153,8 @@ GEO -- TEX --</div>
       preserveDrawingBuffer: false,
       powerPreference: "high-performance"
     });
-    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(getRenderPixelRatio());
+    resizeMainRenderer();
     renderer.shadowMap.enabled = currentQuality().shadows;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     app.appendChild(renderer.domElement);
@@ -1254,6 +1267,19 @@ GEO -- TEX --</div>
       return currentQuality().pixelRatio;
     }
 
+    function getMobileRenderScale() {
+      return isMobile && PERF_TEST.lowResCanvas ? MOBILE_RENDER_SCALE : 1;
+    }
+
+    function resizeMainRenderer() {
+      const scale = getMobileRenderScale();
+      const width = Math.max(1, Math.floor(window.innerWidth * scale));
+      const height = Math.max(1, Math.floor(window.innerHeight * scale));
+      renderer.setSize(width, height, false);
+      renderer.domElement.style.width = "100%";
+      renderer.domElement.style.height = "100%";
+    }
+
     function detectMobileViewport() {
       return mobileQuery.matches || (navigator.maxTouchPoints > 1 && window.innerWidth <= 1024);
     }
@@ -1265,6 +1291,7 @@ GEO -- TEX --</div>
       syncMobileUiState();
       renderer.setPixelRatio(getRenderPixelRatio());
       previewRenderer.setPixelRatio(getRenderPixelRatio());
+      resizeMainRenderer();
       renderer.shadowMap.enabled = currentQuality().shadows;
       previewRenderer.shadowMap.enabled = currentQuality().shadows;
       sun.castShadow = currentQuality().shadows;
@@ -1279,8 +1306,9 @@ GEO -- TEX --</div>
     }
 
     function syncPerfTestClasses() {
-      document.body.classList.toggle("perfNoHud", isMobile && PERF_TEST.disableCssHud);
-      document.body.classList.toggle("perfNoButtons", isMobile && PERF_TEST.disableMobileButtons);
+      document.body.classList.toggle("perfNoHud", isMobile && (PERF_TEST.disableCssHud || PERF_TEST.hideHud));
+      document.body.classList.toggle("perfNoButtons", isMobile && (PERF_TEST.disableMobileButtons || PERF_TEST.hideMobileControls));
+      document.body.classList.toggle("perfNoDebug", isMobile && PERF_TEST.hideDebugOverlay);
     }
 
     function setHint(text) {
@@ -1373,11 +1401,13 @@ GEO -- TEX --</div>
     }
 
     function buildWorld() {
-      addFloor();
-      addTrack();
-      addLabWalls();
-      addLabProps();
-      addItems();
+      if (!isMobile || !PERF_TEST.carOnly) {
+        addFloor();
+        addTrack();
+        addLabWalls();
+        addLabProps();
+        addItems();
+      }
       scene.add(player.group, rival.group);
       buildPreviewWorld();
     }
@@ -1466,8 +1496,9 @@ GEO -- TEX --</div>
         [roadWidth / 2 - 0.45, 0xffffff, 0.06, 0.09],
         [-(roadWidth / 2 - 0.45), 0xffffff, 0.06, 0.09]
       ];
-      if (!isMobile || !PERF_TEST.disableTrackLines) {
-        trackLineDefs.slice(0, currentQuality().trackLines).forEach(([offset, color, height, radius]) => {
+      if (!isMobile || !(PERF_TEST.disableTrackLines || PERF_TEST.hideTrackLines || PERF_TEST.carOnly)) {
+        const lineCount = PERF_TEST.hideRoadShoulder ? Math.min(1, currentQuality().trackLines) : currentQuality().trackLines;
+        trackLineDefs.slice(0, lineCount).forEach(([offset, color, height, radius]) => {
           addTrackLine(offset, color, height, radius);
         });
       }
@@ -1626,7 +1657,7 @@ GEO -- TEX --</div>
     }
 
     function addItems() {
-      if (isMobile && PERF_TEST.disableItemBoxes) return;
+      if (isMobile && (PERF_TEST.disableItemBoxes || PERF_TEST.hideItemBoxes || PERF_TEST.carOnly)) return;
       const itemAt = [0.18, 0.42, 0.72].map((p) => sampleAtProgress(p));
       itemAt.forEach((sample) => {
         const mesh = makeItemBox();
@@ -2320,7 +2351,7 @@ GEO -- TEX --</div>
           `UNM ${perfState.unmeasuredMs.toFixed(1)} WAIT ${perfState.rafWaitMs.toFixed(0)}`,
           `DT ${(perfState.deltaTime * 1000).toFixed(0)} MAX ${(perfState.maxDeltaTime * 1000).toFixed(0)}`,
           `CALL ${info.drawCalls} TRI ${info.triangles}`,
-          `GEO ${info.geometries} TEX ${info.textures}`,
+          `GEO ${info.geometries} TEX ${info.textures} RS ${getMobileRenderScale()}`,
           perfState.sectionDisplay
         ].join("\n");
       }
@@ -2337,6 +2368,7 @@ GEO -- TEX --</div>
           triangles: info.triangles,
           geometries: info.geometries,
           textures: info.textures,
+          renderScale: getMobileRenderScale(),
           totalFrameMs: Number(perfState.totalFrameMs.toFixed(2)),
           measuredMs: Number(perfState.measuredMs.toFixed(2)),
           unmeasuredMs: Number(perfState.unmeasuredMs.toFixed(2)),
@@ -2806,7 +2838,7 @@ GEO -- TEX --</div>
     function render() {
       renderPreview();
       if (isMobile && state.phase === "select") return;
-      if (isMobile && PERF_TEST.disableItemBoxes) {
+      if (isMobile && (PERF_TEST.disableItemBoxes || PERF_TEST.hideItemBoxes)) {
         items.forEach((item) => item.mesh.visible = false);
       }
       renderer.render(scene, camera);
@@ -3021,7 +3053,7 @@ GEO -- TEX --</div>
       updateMobileMode();
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      resizeMainRenderer();
     }
   </script>
 </body>
