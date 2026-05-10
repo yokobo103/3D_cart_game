@@ -627,6 +627,60 @@
       }
       .hintMessage { font-size: 11px; }
       body.isMobile .hintControls { display: none; }
+      body.isMobile.isDriving .hud {
+        inset: 8px 8px auto 8px;
+        grid-template-columns: 148px 112px;
+        grid-auto-rows: min-content;
+        justify-content: space-between;
+        align-items: start;
+        gap: 4px 8px;
+      }
+      body.isMobile.isDriving .brand {
+        display: none;
+      }
+      body.isMobile.isDriving .panel {
+        min-height: 0;
+        padding: 5px 7px;
+        border-radius: 6px;
+      }
+      body.isMobile.isDriving .panel:not(:last-child) {
+        grid-column: 1;
+      }
+      body.isMobile.isDriving .hud > .panel:nth-child(2) {
+        grid-row: 1;
+      }
+      body.isMobile.isDriving .hud > .panel:nth-child(4) {
+        grid-row: 2;
+      }
+      body.isMobile.isDriving .hud > .panel:nth-child(3) {
+        grid-row: 3;
+      }
+      body.isMobile.isDriving .panel:last-child {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+      }
+      body.isMobile.isDriving .label {
+        font-size: 8px;
+        line-height: 1;
+      }
+      body.isMobile.isDriving .value {
+        margin-top: 2px;
+        font-size: 15px;
+        line-height: 1;
+      }
+      body.isMobile.isDriving .itemValue {
+        display: grid;
+        justify-items: center;
+        gap: 4px;
+        font-size: 10px;
+      }
+      body.isMobile.isDriving .itemIcon {
+        width: 72px;
+        height: 72px;
+      }
+      body.isMobile.isDriving .itemName {
+        max-width: 94px;
+      }
       .selectScreen { padding: 8px; overflow: auto; }
       .selectBox {
         height: auto;
@@ -2697,8 +2751,9 @@ GEO -- TEX --</div>
           measureSection("bounds", () => handleCourse(kart));
           kart.objectElapsed += dt;
           if (!isMobile || kart.objectElapsed >= currentQuality().objectInterval) {
+            const objectDt = kart.objectElapsed;
             kart.objectElapsed = 0;
-            measureSection("objects", () => handleObjects(kart));
+            measureSection("objects", () => handleObjects(kart, objectDt));
           }
           measureSection("roulette", () => updateItemRoulette(kart, dt));
           kart.lapElapsed += dt;
@@ -2781,9 +2836,9 @@ GEO -- TEX --</div>
       }
     }
 
-    function handleObjects(kart) {
+    function handleObjects(kart, dt) {
       items.forEach((item) => {
-        item.cool = Math.max(0, item.cool - 1 / 60);
+        if (!kart.isAI) item.cool = Math.max(0, item.cool - dt);
         if (item.cool <= 0 && !kart.held && !kart.itemRoulette && distanceXZ(kart, item.mesh.position) < 2.0) {
           item.cool = 3;
           item.mesh.visible = false;
@@ -2798,7 +2853,7 @@ GEO -- TEX --</div>
       });
 
       traps.forEach((trap) => {
-        trap.cool = Math.max(0, trap.cool - 1 / 60);
+        if (!kart.isAI) trap.cool = Math.max(0, trap.cool - dt);
         if (trap.cool <= 0 && distanceXZ(kart, trap.mesh.position) < 2.3) {
           trap.cool = 1.3;
           kart.slip = 1.6;
