@@ -659,15 +659,15 @@
       body.isMobile .perfOverlay {
         position: fixed;
         right: 8px;
-        top: 206px;
+        top: 202px;
         z-index: 100;
-        min-width: 116px;
-        padding: 6px 8px;
-        border: 1px solid rgba(120, 229, 255, 0.45);
-        border-radius: 6px;
-        background: rgba(5, 17, 28, 0.78);
+        width: 168px;
+        padding: 4px 5px;
+        border: 1px solid rgba(120, 229, 255, 0.32);
+        border-radius: 4px;
+        background: #06111d;
         color: #dffaff;
-        font: 700 11px/1.35 Consolas, monospace;
+        font: 700 9px/1.22 Consolas, monospace;
         white-space: pre;
         pointer-events: none;
       }
@@ -758,7 +758,8 @@
       body.isMobile .previewBadge {
         backdrop-filter: none;
         filter: none;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+        box-shadow: none;
+        background: #06111d;
       }
 
       body.isMobile .selectScreen {
@@ -791,6 +792,15 @@
       }
 
       body.isMobile .racerCard::before {
+        display: none;
+      }
+
+      body.isMobile.perfNoHud .hud,
+      body.isMobile.perfNoHud .hint {
+        display: none;
+      }
+
+      body.isMobile.perfNoButtons .mobileControls {
         display: none;
       }
     }
@@ -946,6 +956,15 @@ GEO -- TEX --</div>
     const SHOW_PERF_OVERLAY = true;
     const PERF_LOG_INTERVAL_MS = 5000;
     const MOBILE_TEXTURE_MAX_SIZE = 1024;
+    const PERF_TEST = {
+      disableCssHud: false,
+      disableMobileButtons: false,
+      disableTrackLines: false,
+      disableItemBoxes: false,
+      disableAllEffects: false,
+      freezeCamera: false,
+      renderEveryOtherFrame: false
+    };
     const QUALITY = {
       desktop: {
         pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
@@ -999,7 +1018,18 @@ GEO -- TEX --</div>
       average: 0,
       lastInfo: null,
       sections: {},
-      sectionDisplay: ""
+      sectionDisplay: "",
+      totalFrameTotal: 0,
+      measuredFrameTotal: 0,
+      frameSamples: 0,
+      totalFrameMs: 0,
+      measuredMs: 0,
+      unmeasuredMs: 0,
+      rafWaitMs: 0,
+      deltaTime: 0,
+      maxDeltaTime: 0,
+      currentMeasuredMs: 0,
+      skipRenderFrame: false
     };
     let isPageVisible = !document.hidden;
     document.body.classList.toggle("isMobile", isMobile);
@@ -1183,6 +1213,7 @@ GEO -- TEX --</div>
     initSelectScreen();
     prepareSelectionScene();
     initPerfOverlay();
+    syncPerfTestClasses();
     requestAnimationFrame(loop);
 
     window.addEventListener("resize", onResize);
@@ -1230,6 +1261,7 @@ GEO -- TEX --</div>
     function updateMobileMode() {
       isMobile = detectMobileViewport();
       document.body.classList.toggle("isMobile", isMobile);
+      syncPerfTestClasses();
       syncMobileUiState();
       renderer.setPixelRatio(getRenderPixelRatio());
       previewRenderer.setPixelRatio(getRenderPixelRatio());
@@ -1244,6 +1276,11 @@ GEO -- TEX --</div>
       if (mobileDrivingActive === driving) return;
       mobileDrivingActive = driving;
       document.body.classList.toggle("isDriving", driving);
+    }
+
+    function syncPerfTestClasses() {
+      document.body.classList.toggle("perfNoHud", isMobile && PERF_TEST.disableCssHud);
+      document.body.classList.toggle("perfNoButtons", isMobile && PERF_TEST.disableMobileButtons);
     }
 
     function setHint(text) {
@@ -1429,9 +1466,11 @@ GEO -- TEX --</div>
         [roadWidth / 2 - 0.45, 0xffffff, 0.06, 0.09],
         [-(roadWidth / 2 - 0.45), 0xffffff, 0.06, 0.09]
       ];
-      trackLineDefs.slice(0, currentQuality().trackLines).forEach(([offset, color, height, radius]) => {
-        addTrackLine(offset, color, height, radius);
-      });
+      if (!isMobile || !PERF_TEST.disableTrackLines) {
+        trackLineDefs.slice(0, currentQuality().trackLines).forEach(([offset, color, height, radius]) => {
+          addTrackLine(offset, color, height, radius);
+        });
+      }
       if (Number.isFinite(currentQuality().dashStep)) addDashes();
       addStartGate();
     }
@@ -1587,6 +1626,7 @@ GEO -- TEX --</div>
     }
 
     function addItems() {
+      if (isMobile && PERF_TEST.disableItemBoxes) return;
       const itemAt = [0.18, 0.42, 0.72].map((p) => sampleAtProgress(p));
       itemAt.forEach((sample) => {
         const mesh = makeItemBox();
@@ -2255,7 +2295,6 @@ GEO -- TEX --</div>
         perfState.sampleStart = now;
         perfState.lastLog = now;
       }
-      perfState.frameCount += 1;
       const elapsed = now - perfState.sampleStart;
       if (elapsed < 1000) return;
 
@@ -2263,13 +2302,23 @@ GEO -- TEX --</div>
       perfState.average = perfState.average
         ? perfState.average * 0.82 + perfState.instant * 0.18
         : perfState.instant;
+      perfState.totalFrameMs = perfState.frameSamples ? perfState.totalFrameTotal / perfState.frameSamples : 0;
+      perfState.measuredMs = perfState.frameSamples ? perfState.measuredFrameTotal / perfState.frameSamples : 0;
+      perfState.unmeasuredMs = Math.max(0, perfState.totalFrameMs - perfState.measuredMs);
+      perfState.rafWaitMs = Math.max(0, perfState.deltaTime * 1000 - perfState.totalFrameMs);
       perfState.frameCount = 0;
       perfState.sampleStart = now;
+      perfState.totalFrameTotal = 0;
+      perfState.measuredFrameTotal = 0;
+      perfState.frameSamples = 0;
       flushPerfSections();
       const info = perfState.lastInfo || getRendererInfo();
       if (perfState.element && isMobile) {
         perfState.element.textContent = [
           `FPS ${perfState.instant.toFixed(0)} AVG ${perfState.average.toFixed(0)}`,
+          `TOT ${perfState.totalFrameMs.toFixed(1)} SUM ${perfState.measuredMs.toFixed(1)}`,
+          `UNM ${perfState.unmeasuredMs.toFixed(1)} WAIT ${perfState.rafWaitMs.toFixed(0)}`,
+          `DT ${(perfState.deltaTime * 1000).toFixed(0)} MAX ${(perfState.maxDeltaTime * 1000).toFixed(0)}`,
           `CALL ${info.drawCalls} TRI ${info.triangles}`,
           `GEO ${info.geometries} TEX ${info.textures}`,
           perfState.sectionDisplay
@@ -2287,9 +2336,17 @@ GEO -- TEX --</div>
           drawCalls: info.drawCalls,
           triangles: info.triangles,
           geometries: info.geometries,
-          textures: info.textures
+          textures: info.textures,
+          totalFrameMs: Number(perfState.totalFrameMs.toFixed(2)),
+          measuredMs: Number(perfState.measuredMs.toFixed(2)),
+          unmeasuredMs: Number(perfState.unmeasuredMs.toFixed(2)),
+          rafWaitMs: Number(perfState.rafWaitMs.toFixed(2)),
+          deltaTimeMs: Number((perfState.deltaTime * 1000).toFixed(1)),
+          maxDeltaTimeMs: Number((perfState.maxDeltaTime * 1000).toFixed(1)),
+          perfTest: PERF_TEST
         });
       }
+      perfState.maxDeltaTime = 0;
     }
 
     function getRendererInfo() {
@@ -2310,6 +2367,23 @@ GEO -- TEX --</div>
       section.total += elapsed;
       section.count += 1;
       return result;
+    }
+
+    function measureFrameSection(name, fn) {
+      const start = performance.now();
+      const result = measureSection(name, fn);
+      perfState.currentMeasuredMs += performance.now() - start;
+      return result;
+    }
+
+    function recordFrameStats(totalMs, measuredMs, rawDelta, dt) {
+      if (!isMobile || !SHOW_PERF_OVERLAY) return;
+      perfState.totalFrameTotal += totalMs;
+      perfState.measuredFrameTotal += measuredMs;
+      perfState.frameSamples += 1;
+      perfState.frameCount += 1;
+      perfState.deltaTime = dt;
+      perfState.maxDeltaTime = Math.max(perfState.maxDeltaTime, rawDelta);
     }
 
     function flushPerfSections() {
@@ -2336,6 +2410,8 @@ GEO -- TEX --</div>
     }
 
     function loop(now) {
+      const frameStart = performance.now();
+      perfState.currentMeasuredMs = 0;
       if (!isPageVisible) return;
       const mobileIdle = isMobile && state.phase !== "countdown" && state.phase !== "race";
       if (mobileIdle && now - state.lastIdleFrame < 1000 / 15) {
@@ -2343,19 +2419,28 @@ GEO -- TEX --</div>
         return;
       }
       if (mobileIdle) state.lastIdleFrame = now;
-      const dt = Math.min(0.033, (now - (state.last || now)) / 1000);
+      const rawDt = (now - (state.last || now)) / 1000;
+      const dt = Math.min(rawDt, 0.05);
       state.last = now;
-      updatePerfStats(now);
-      measureSection("update", () => update(dt));
-      measureSection("render", () => render());
-      requestAnimationFrame(loop);
+      measureFrameSection("input", updateInputState);
+      measureFrameSection("update", () => update(dt));
+      const shouldRender = !isMobile || !PERF_TEST.renderEveryOtherFrame || !perfState.skipRenderFrame;
+      if (shouldRender) measureFrameSection("render", () => render());
+      perfState.skipRenderFrame = !perfState.skipRenderFrame;
+      measureFrameSection("perf", () => updatePerfStats(now));
+      measureFrameSection("raf", () => requestAnimationFrame(loop));
+      recordFrameStats(performance.now() - frameStart, perfState.currentMeasuredMs, rawDt, dt);
+    }
+
+    function updateInputState() {
+      // Pointer and keyboard handlers update `keys` directly; this section verifies input has no hidden per-frame work.
     }
 
     function update(dt) {
       syncMobileUiState();
       if (state.phase === "countdown" || state.phase === "race") {
         state.sceneElapsed += dt;
-        if (!isMobile || state.sceneElapsed >= currentQuality().sceneInterval) {
+        if (!PERF_TEST.disableAllEffects && (!isMobile || state.sceneElapsed >= currentQuality().sceneInterval)) {
           const sceneDt = state.sceneElapsed;
           state.sceneElapsed = 0;
           measureSection("scene", () => animateScene(sceneDt));
@@ -2406,10 +2491,10 @@ GEO -- TEX --</div>
           measureSection("ui", () => updateHUD());
         }
       }
-      audio.updateEngine(player.speed, state.phase === "race");
-      if (state.phase === "race" || particles.length) measureSection("particles", () => updateParticles(dt));
+      measureSection("audio", () => audio.updateEngine(player.speed, state.phase === "race"));
+      if (!PERF_TEST.disableAllEffects && (state.phase === "race" || particles.length)) measureSection("particles", () => updateParticles(dt));
       state.cameraElapsed += dt;
-      if (!isMobile || state.cameraElapsed >= currentQuality().cameraInterval) {
+      if (!PERF_TEST.freezeCamera && (!isMobile || state.cameraElapsed >= currentQuality().cameraInterval)) {
         const cameraDt = state.cameraElapsed;
         state.cameraElapsed = 0;
         measureSection("camera", () => updateCamera(cameraDt));
@@ -2721,6 +2806,9 @@ GEO -- TEX --</div>
     function render() {
       renderPreview();
       if (isMobile && state.phase === "select") return;
+      if (isMobile && PERF_TEST.disableItemBoxes) {
+        items.forEach((item) => item.mesh.visible = false);
+      }
       renderer.render(scene, camera);
       perfState.lastInfo = getRendererInfo();
     }
@@ -2863,6 +2951,7 @@ GEO -- TEX --</div>
     }
 
     function addParticle(x, y, z, color, life) {
+      if (isMobile && PERF_TEST.disableAllEffects) return;
       if (particles.length >= currentQuality().maxParticles) return;
       let mesh;
       if (isMobile) {
