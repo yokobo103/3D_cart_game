@@ -942,6 +942,7 @@ GEO -- TEX --</div>
     // Mobile-only switches keep the desktop renderer and layout unchanged.
     const mobileQuery = window.matchMedia("(max-width: 820px)");
     let isMobile = detectMobileViewport();
+    let mobileDrivingActive = false;
     const SHOW_PERF_OVERLAY = true;
     const PERF_LOG_INTERVAL_MS = 5000;
     const MOBILE_TEXTURE_MAX_SIZE = 1024;
@@ -967,7 +968,7 @@ GEO -- TEX --</div>
         pixelRatio: 1.0,
         shadows: false,
         antialias: false,
-        particles: 0.12,
+        particles: 0,
         postprocess: false,
         trackGlowStep: Infinity,
         dashStep: Infinity,
@@ -975,10 +976,18 @@ GEO -- TEX --</div>
         trackLineTransparent: false,
         propLimit: 0,
         coneCount: 8,
-        explosionParticles: 4,
+        explosionParticles: 0,
         maxParticles: 12,
         wallLights: false,
-        previewRimLight: false
+        previewRimLight: false,
+        trackSearchWindow: 28,
+        courseInterval: 0.066,
+        aiInterval: 0.1,
+        objectInterval: 0.12,
+        lapInterval: 0.16,
+        hudInterval: 0.16,
+        cameraInterval: 0.033,
+        sceneInterval: 0.1
       }
     };
     const perfState = {
@@ -988,7 +997,9 @@ GEO -- TEX --</div>
       lastLog: 0,
       instant: 0,
       average: 0,
-      lastInfo: null
+      lastInfo: null,
+      sections: {},
+      sectionDisplay: ""
     };
     let isPageVisible = !document.hidden;
     document.body.classList.toggle("isMobile", isMobile);
@@ -1081,6 +1092,9 @@ GEO -- TEX --</div>
       last: 0,
       lastIdleFrame: 0,
       hudElapsed: 0,
+      aiElapsed: 0,
+      sceneElapsed: 0,
+      cameraElapsed: 0,
       winner: null,
       notice: 0
     };
@@ -1161,6 +1175,9 @@ GEO -- TEX --</div>
     const audio = createAudioController(AUDIO_ASSETS);
     const mobileParticleGeometry = new THREE.SphereGeometry(0.1, 5, 5);
     const mobileParticleMaterials = new Map();
+    const tempCameraForward = new THREE.Vector3();
+    const tempCameraDesired = new THREE.Vector3();
+    const tempCameraLookAt = new THREE.Vector3();
 
     buildWorld();
     initSelectScreen();
@@ -1223,7 +1240,14 @@ GEO -- TEX --</div>
     }
 
     function syncMobileUiState() {
-      document.body.classList.toggle("isDriving", state.phase === "countdown" || state.phase === "race");
+      const driving = state.phase === "countdown" || state.phase === "race";
+      if (mobileDrivingActive === driving) return;
+      mobileDrivingActive = driving;
+      document.body.classList.toggle("isDriving", driving);
+    }
+
+    function setHint(text) {
+      if (ui.hint.textContent !== text) ui.hint.textContent = text;
     }
 
     function installMobileControls() {
@@ -1645,6 +1669,11 @@ GEO -- TEX --</div>
         stunned: 0,
         held: null,
         itemRoulette: null,
+        nearestIndex: 0,
+        nearest: null,
+        courseElapsed: 0,
+        objectElapsed: 0,
+        lapElapsed: 0,
         finished: false
       };
       setKartLoadout(kart, characterKey, colorKey);
@@ -1809,7 +1838,7 @@ GEO -- TEX --</div>
       ui.countdown.classList.remove("hidden");
       resetRaceRuntime();
       audio.startRace();
-      ui.hint.textContent = "アイテム箱を取るとSpaceで使えます。";
+      setHint("アイテム箱を取るとSpaceで使えます。");
     }
 
     async function loadKartTemplate(path) {
@@ -2185,6 +2214,11 @@ GEO -- TEX --</div>
         kart.stunned = 0;
         kart.held = null;
         kart.itemRoulette = null;
+        kart.nearestIndex = 0;
+        kart.nearest = null;
+        kart.courseElapsed = 0;
+        kart.objectElapsed = 0;
+        kart.lapElapsed = 0;
         kart.finished = false;
       });
       items.forEach((item) => item.cool = 0);
@@ -2193,6 +2227,9 @@ GEO -- TEX --</div>
       particles.length = 0;
       state.winner = null;
       state.hudElapsed = 0;
+      state.aiElapsed = 0;
+      state.sceneElapsed = 0;
+      state.cameraElapsed = 0;
       updateHUD();
     }
 
@@ -2228,12 +2265,14 @@ GEO -- TEX --</div>
         : perfState.instant;
       perfState.frameCount = 0;
       perfState.sampleStart = now;
+      flushPerfSections();
       const info = perfState.lastInfo || getRendererInfo();
       if (perfState.element && isMobile) {
         perfState.element.textContent = [
           `FPS ${perfState.instant.toFixed(0)} AVG ${perfState.average.toFixed(0)}`,
           `CALL ${info.drawCalls} TRI ${info.triangles}`,
-          `GEO ${info.geometries} TEX ${info.textures}`
+          `GEO ${info.geometries} TEX ${info.textures}`,
+          perfState.sectionDisplay
         ].join("\n");
       }
       if (now - perfState.lastLog >= PERF_LOG_INTERVAL_MS) {
@@ -2262,6 +2301,30 @@ GEO -- TEX --</div>
       };
     }
 
+    function measureSection(name, fn) {
+      if (!isMobile || !SHOW_PERF_OVERLAY || state.phase !== "race") return fn();
+      const start = performance.now();
+      const result = fn();
+      const elapsed = performance.now() - start;
+      const section = perfState.sections[name] || (perfState.sections[name] = { total: 0, count: 0, average: 0 });
+      section.total += elapsed;
+      section.count += 1;
+      return result;
+    }
+
+    function flushPerfSections() {
+      if (!isMobile || !SHOW_PERF_OVERLAY) return;
+      const rows = Object.entries(perfState.sections).map(([name, section]) => {
+        const sample = section.count ? section.total / section.count : 0;
+        section.average = section.average ? section.average * 0.75 + sample * 0.25 : sample;
+        section.total = 0;
+        section.count = 0;
+        return [name, section.average];
+      });
+      rows.sort((a, b) => b[1] - a[1]);
+      perfState.sectionDisplay = rows.slice(0, 5).map(([name, ms]) => `${name} ${ms.toFixed(1)}ms`).join("\n");
+    }
+
     function placeKart(kart, progress, lateral) {
       const sample = sampleAtProgress(progress);
       const normal = sideNormal(sample.tangent);
@@ -2283,14 +2346,21 @@ GEO -- TEX --</div>
       const dt = Math.min(0.033, (now - (state.last || now)) / 1000);
       state.last = now;
       updatePerfStats(now);
-      update(dt);
-      render();
+      measureSection("update", () => update(dt));
+      measureSection("render", () => render());
       requestAnimationFrame(loop);
     }
 
     function update(dt) {
       syncMobileUiState();
-      if (state.phase === "countdown" || state.phase === "race") animateScene(dt);
+      if (state.phase === "countdown" || state.phase === "race") {
+        state.sceneElapsed += dt;
+        if (!isMobile || state.sceneElapsed >= currentQuality().sceneInterval) {
+          const sceneDt = state.sceneElapsed;
+          state.sceneElapsed = 0;
+          measureSection("scene", () => animateScene(sceneDt));
+        }
+      }
       if (state.phase === "countdown") {
         state.countdown -= dt;
         ui.countdown.firstElementChild.textContent = state.countdown > 0.55 ? Math.ceil(state.countdown) : "GO!";
@@ -2301,26 +2371,49 @@ GEO -- TEX --</div>
       }
 
       if (state.phase === "race") {
-        updatePlayer(dt);
-        updateAI(dt);
+        measureSection("player", () => updatePlayer(dt));
+        state.aiElapsed += dt;
+        if (!isMobile || state.aiElapsed >= currentQuality().aiInterval) {
+          const aiDt = state.aiElapsed;
+          state.aiElapsed = 0;
+          measureSection("ai", () => updateAI(aiDt));
+        }
         [player, rival].forEach((kart) => {
-          integrate(kart, dt);
-          handleCourse(kart);
-          handleObjects(kart);
-          updateItemRoulette(kart, dt);
-          updateLap(kart);
-          syncKart(kart);
+          measureSection("move", () => integrate(kart, dt));
+          kart.courseElapsed += dt;
+          if (!isMobile || kart.courseElapsed >= currentQuality().courseInterval || !kart.nearest) {
+            kart.courseElapsed = 0;
+            measureSection("course", () => updateTrackState(kart));
+          }
+          measureSection("bounds", () => handleCourse(kart));
+          kart.objectElapsed += dt;
+          if (!isMobile || kart.objectElapsed >= currentQuality().objectInterval) {
+            kart.objectElapsed = 0;
+            measureSection("objects", () => handleObjects(kart));
+          }
+          measureSection("roulette", () => updateItemRoulette(kart, dt));
+          kart.lapElapsed += dt;
+          if (!isMobile || kart.lapElapsed >= currentQuality().lapInterval) {
+            kart.lapElapsed = 0;
+            measureSection("lap", () => updateLap(kart));
+          }
+          measureSection("sync", () => syncKart(kart));
         });
-        updateMissiles(dt);
+        measureSection("missile", () => updateMissiles(dt));
         state.hudElapsed += dt;
-        if (!isMobile || state.hudElapsed >= 0.1) {
+        if (!isMobile || state.hudElapsed >= currentQuality().hudInterval) {
           state.hudElapsed = 0;
-          updateHUD();
+          measureSection("ui", () => updateHUD());
         }
       }
       audio.updateEngine(player.speed, state.phase === "race");
-      if (state.phase === "race" || particles.length) updateParticles(dt);
-      updateCamera(dt);
+      if (state.phase === "race" || particles.length) measureSection("particles", () => updateParticles(dt));
+      state.cameraElapsed += dt;
+      if (!isMobile || state.cameraElapsed >= currentQuality().cameraInterval) {
+        const cameraDt = state.cameraElapsed;
+        state.cameraElapsed = 0;
+        measureSection("camera", () => updateCamera(cameraDt));
+      }
     }
 
     function updatePlayer(dt) {
@@ -2338,7 +2431,9 @@ GEO -- TEX --</div>
       const delta = angleDiff(desired, rival.angle);
       rival.angle += clamp(delta, -rival.turn * dt, rival.turn * dt);
       rival.speed += rival.accel * (Math.abs(delta) > 0.9 ? 0.45 : 0.82) * dt;
-      if (new THREE.Vector2(rival.x - target.x, rival.z - target.z).length() < 3.2) {
+      const dx = rival.x - target.x;
+      const dz = rival.z - target.z;
+      if (dx * dx + dz * dz < 10.24) {
         rival.waypoint = (rival.waypoint + 10) % samples.length;
       }
       if (!rival.held && Math.random() < dt * 0.08) rival.held = "boost";
@@ -2357,24 +2452,23 @@ GEO -- TEX --</div>
       kart.speed *= Math.pow(kart.friction, dt * 60);
       if (Math.abs(kart.speed) < 0.08) kart.speed = 0;
       if (kart.slip > 0) kart.angle += Math.sin(performance.now() / 80) * 0.025;
-      const forward = kartForward(kart.angle);
-      kart.x += forward.x * kart.speed * dt;
-      kart.z += forward.z * kart.speed * dt;
+      const forwardAngle = kart.angle + KART_MODEL_FORWARD_OFFSET;
+      kart.x += Math.sin(forwardAngle) * kart.speed * dt;
+      kart.z += Math.cos(forwardAngle) * kart.speed * dt;
       if (Math.abs(kart.speed) > 10 && Math.random() < 0.45 * currentQuality().particles) addParticle(kart.x, 0.25, kart.z, 0xcfefff, 0.35);
     }
 
     function handleCourse(kart) {
-      const nearest = nearestTrack(kart.x, kart.z);
+      const nearest = kart.nearest || updateTrackState(kart);
       const off = nearest.distance - roadWidth / 2;
       if (off > 0) {
         const difficulty = DIFFICULTIES[selectionState.selectedDifficulty] || DIFFICULTIES.normal;
-        const push = nearest.normal.clone().multiplyScalar(nearest.side * off);
         const pushStrength = kart.boost > 0 ? Math.max(difficulty.push, BOOST_CONFIG.offroadPush) : difficulty.push;
         const drag = difficulty.fixedDrag ?? clamp(1 - off * difficulty.dragPerMeter, difficulty.minDrag, difficulty.maxDrag);
-        kart.x -= push.x * pushStrength;
-        kart.z -= push.z * pushStrength;
+        kart.x -= nearest.normal.x * nearest.side * off * pushStrength;
+        kart.z -= nearest.normal.z * nearest.side * off * pushStrength;
         kart.speed *= kart.boost > 0 ? Math.max(drag, BOOST_CONFIG.offroadDrag) : drag;
-        if (!kart.isAI) ui.hint.textContent = "コース外です。緑の縁石内に戻されます。";
+        if (!kart.isAI) setHint("コース外です。緑の縁石内に戻されます。");
       }
     }
 
@@ -2389,7 +2483,7 @@ GEO -- TEX --</div>
           } else {
             audio.play("item");
             startItemRoulette(kart);
-            ui.hint.textContent = "アイテム抽選中...";
+            setHint("アイテム抽選中...");
           }
         }
       });
@@ -2400,7 +2494,7 @@ GEO -- TEX --</div>
           trap.cool = 1.3;
           kart.slip = 1.6;
           kart.speed *= 0.72;
-          if (!kart.isAI) ui.hint.textContent = "すべる薬品でグリップ低下。";
+          if (!kart.isAI) setHint("すべる薬品でグリップ低下。");
         }
       });
     }
@@ -2430,13 +2524,13 @@ GEO -- TEX --</div>
       if (progress >= 1) {
         kart.held = roulette.target;
         kart.itemRoulette = null;
-        if (!kart.isAI) ui.hint.textContent = `${itemLabel(kart.held)}をゲット。Spaceで発動。`;
+        if (!kart.isAI) setHint(`${itemLabel(kart.held)}をゲット。Spaceで発動。`);
       }
     }
 
     function updateLap(kart) {
       kart.lastProgress = kart.progress;
-      kart.progress = courseProgress(kart.x, kart.z);
+      kart.progress = updateTrackState(kart).sample.progress;
       if (kart.lastProgress > 0.83 && kart.progress < 0.16 && !kart.finished) {
         kart.lap += 1;
         if (kart.lap > totalLaps) {
@@ -2448,18 +2542,18 @@ GEO -- TEX --</div>
 
     function useItem() {
       if (player.itemRoulette) {
-        ui.hint.textContent = "アイテム抽選中...";
+        setHint("アイテム抽選中...");
         return;
       }
       if (!player.held) {
-        ui.hint.textContent = "アイテム箱を取るとSpaceで使えます。";
+        setHint("アイテム箱を取るとSpaceで使えます。");
         return;
       }
       if (player.held === "boost") {
         audio.play("boost");
         player.boost = BOOST_CONFIG.playerDuration;
         player.speed = Math.max(player.speed, BOOST_CONFIG.minLaunchSpeed);
-        ui.hint.textContent = "にゃんブースト発動。";
+        setHint("にゃんブースト発動。");
       }
       if (player.held === "slime") {
         audio.play("liquid");
@@ -2468,12 +2562,12 @@ GEO -- TEX --</div>
         trap.position.set(player.x - forward.x * 4, 0.16, player.z - forward.z * 4);
         scene.add(trap);
         traps.push({ mesh: trap, cool: 0, life: 8 });
-        ui.hint.textContent = "すべる薬品を後ろに設置。";
+        setHint("すべる薬品を後ろに設置。");
       }
       if (player.held === "rocket") {
         audio.play("missile");
         fireMissile(player, rival);
-        ui.hint.textContent = "ニャビットミサイル発射。";
+        setHint("ニャビットミサイル発射。");
       }
       player.held = null;
     }
@@ -2557,9 +2651,12 @@ GEO -- TEX --</div>
     function updateHUD() {
       const pScore = (player.lap - 1) + player.progress;
       const rScore = (rival.lap - 1) + rival.progress;
-      ui.lap.textContent = `${Math.min(player.lap, totalLaps)} / ${totalLaps}`;
-      ui.rank.textContent = pScore >= rScore ? "1st" : "2nd";
-      ui.speed.textContent = `${Math.round(Math.abs(player.speed) * 5.2)} km/h`;
+      const lapText = `${Math.min(player.lap, totalLaps)} / ${totalLaps}`;
+      const rankText = pScore >= rScore ? "1st" : "2nd";
+      const speedText = `${Math.round(Math.abs(player.speed) * 5.2)} km/h`;
+      if (ui.lap.textContent !== lapText) ui.lap.textContent = lapText;
+      if (ui.rank.textContent !== rankText) ui.rank.textContent = rankText;
+      if (ui.speed.textContent !== speedText) ui.speed.textContent = speedText;
       updateItemHUD();
     }
 
@@ -2579,14 +2676,15 @@ GEO -- TEX --</div>
     }
 
     function animateScene(dt) {
+      const now = performance.now();
       items.forEach((item) => {
         item.mesh.rotation.y += dt * 1.9;
-        item.mesh.position.y = item.mesh.userData.baseY + Math.sin(performance.now() / 260) * 0.18;
+        item.mesh.position.y = item.mesh.userData.baseY + Math.sin(now / 260) * 0.18;
         if (item.cool <= 0) item.mesh.visible = true;
       });
       traps.forEach((trap) => {
         if (trap.life !== Infinity) trap.life -= dt;
-        trap.mesh.material.opacity = trap.life === Infinity ? 0.7 : clamp(trap.life / 8, 0, 0.7);
+        if (!isMobile) trap.mesh.material.opacity = trap.life === Infinity ? 0.7 : clamp(trap.life / 8, 0, 0.7);
       });
       for (let i = traps.length - 1; i >= 2; i--) {
         if (traps[i].life <= 0) {
@@ -2598,20 +2696,26 @@ GEO -- TEX --</div>
 
     function updateCamera(dt) {
       if (state.phase === "select") {
-        const midpoint = new THREE.Vector3(0, 0, 0.8);
-        const desired = midpoint.clone().add(new THREE.Vector3(0, 3.2, 9.2));
-        camera.position.lerp(desired, 1 - Math.pow(0.0001, dt));
-        camera.lookAt(midpoint.x, 1.05, midpoint.z);
+        tempCameraDesired.set(0, 3.2, 10);
+        camera.position.lerp(tempCameraDesired, 1 - Math.pow(0.0001, dt));
+        camera.lookAt(0, 1.05, 0.8);
         return;
       }
 
-      const forward = kartForward(player.angle);
-      const desired = new THREE.Vector3(player.x, 0, player.z)
-        .addScaledVector(forward, -10.5)
-        .add(new THREE.Vector3(0, 5.3, 0));
-      camera.position.lerp(desired, 1 - Math.pow(0.001, dt));
-      const lookAt = new THREE.Vector3(player.x, 1.25, player.z).addScaledVector(forward, 5.6);
-      camera.lookAt(lookAt);
+      const forwardAngle = player.angle + KART_MODEL_FORWARD_OFFSET;
+      tempCameraForward.set(Math.sin(forwardAngle), 0, Math.cos(forwardAngle));
+      tempCameraDesired.set(
+        player.x - tempCameraForward.x * 10.5,
+        5.3,
+        player.z - tempCameraForward.z * 10.5
+      );
+      camera.position.lerp(tempCameraDesired, isMobile ? 0.26 : 1 - Math.pow(0.001, dt));
+      tempCameraLookAt.set(
+        player.x + tempCameraForward.x * 5.6,
+        1.25,
+        player.z + tempCameraForward.z * 5.6
+      );
+      camera.lookAt(tempCameraLookAt);
     }
 
     function render() {
@@ -2658,24 +2762,40 @@ GEO -- TEX --</div>
         const point = trackCurve.getPointAt(t);
         if (i > 0) distance += point.distanceTo(prev);
         const tangent = trackCurve.getTangentAt(t).normalize();
-        result.push({ point, tangent, distance, progress: t });
+        const normal = new THREE.Vector3(tangent.z, 0, -tangent.x).normalize();
+        result.push({ point, tangent, normal, distance, progress: t, index: i });
         prev = point;
       }
       return result;
     }
 
     function nearestTrack(x, z) {
+      return nearestTrackNear(x, z, null);
+    }
+
+    function updateTrackState(kart) {
+      const nearest = nearestTrackNear(kart.x, kart.z, isMobile ? kart.nearestIndex : null);
+      kart.nearest = nearest;
+      kart.nearestIndex = nearest.index;
+      return nearest;
+    }
+
+    function nearestTrackNear(x, z, hintIndex) {
       let best = null;
       let bestDistance = Infinity;
-      for (const sample of samples) {
+      const searchAll = hintIndex == null || !isMobile;
+      const windowSize = currentQuality().trackSearchWindow || samples.length;
+      const start = searchAll ? 0 : hintIndex - windowSize;
+      const end = searchAll ? samples.length - 1 : hintIndex + windowSize;
+      for (let i = start; i <= end; i++) {
+        const sample = samples[((i % samples.length) + samples.length) % samples.length];
         const dx = x - sample.point.x;
         const dz = z - sample.point.z;
-        const d = Math.hypot(dx, dz);
-        if (d < bestDistance) {
-          const normal = sideNormal(sample.tangent);
-          const side = Math.sign(dx * normal.x + dz * normal.z) || 1;
-          bestDistance = d;
-          best = { sample, distance: d, normal, side };
+        const d2 = dx * dx + dz * dz;
+        if (d2 < bestDistance) {
+          const side = Math.sign(dx * sample.normal.x + dz * sample.normal.z) || 1;
+          bestDistance = d2;
+          best = { sample, index: sample.index, distanceSq: d2, distance: Math.sqrt(d2), normal: sample.normal, side };
         }
       }
       return best;
