@@ -642,30 +642,6 @@
       .selectFooter { grid-template-columns: 1fr; }
       .startButton { width: 100%; }
 
-      body.isMobile .countdown {
-        inset: 0;
-        place-items: center;
-        background: transparent;
-        contain: layout paint style;
-      }
-
-      body.isMobile .count {
-        min-width: 112px;
-        padding: 8px 14px;
-        border: 1px solid rgba(120, 229, 255, 0.36);
-        border-radius: 8px;
-        background: #06111d;
-        color: #ffd844;
-        font-size: 54px;
-        line-height: 1;
-        font-weight: 1000;
-        -webkit-text-stroke: 0;
-        text-shadow: none;
-        box-shadow: none;
-        filter: none;
-        transform: none;
-      }
-
       body.isMobile.isDriving .mobileControls {
         position: fixed;
         inset: auto 0 0 0;
@@ -793,7 +769,6 @@
       body.isMobile .brand,
       body.isMobile .value,
       body.isMobile .selectHeader h1,
-      body.isMobile .count,
       body.isMobile .goalBox h1 {
         text-shadow: none;
       }
@@ -1043,11 +1018,11 @@ GEO -- TEX --</div>
         lapInterval: 0.16,
         hudInterval: 0.16,
         cameraInterval: 0.033,
-        sceneInterval: 0.1
+        sceneInterval: 0.1,
+        basicMaterials: true,
+        fog: false
       }
     };
-    const MOBILE_COUNTDOWN_DURATION = 2.1;
-    const MOBILE_COUNTDOWN_GO_TIME = 0.45;
     const perfState = {
       element: null,
       frameCount: 0,
@@ -1176,7 +1151,8 @@ GEO -- TEX --</div>
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x07111d);
-    scene.fog = new THREE.Fog(0x07111d, 42, 105);
+    const desktopSceneFog = new THREE.Fog(0x07111d, 42, 105);
+    scene.fog = currentQuality().fog === false ? null : desktopSceneFog;
 
     const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 260);
     const renderer = new THREE.WebGLRenderer({
@@ -1327,6 +1303,7 @@ GEO -- TEX --</div>
       renderer.shadowMap.enabled = currentQuality().shadows;
       previewRenderer.shadowMap.enabled = currentQuality().shadows;
       sun.castShadow = currentQuality().shadows;
+      scene.fog = currentQuality().fog === false ? null : desktopSceneFog;
       updatePerfOverlayVisibility();
     }
 
@@ -1466,12 +1443,14 @@ GEO -- TEX --</div>
 
     function addFloor() {
       const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(96, 86, 24, 24),
-        new THREE.MeshStandardMaterial({
-          color: 0x102638,
-          roughness: 0.7,
-          metalness: 0.12
-        })
+        new THREE.PlaneGeometry(96, 86, isMobile ? 1 : 24, isMobile ? 1 : 24),
+        isMobile
+          ? new THREE.MeshBasicMaterial({ color: 0x102638 })
+          : new THREE.MeshStandardMaterial({
+              color: 0x102638,
+              roughness: 0.7,
+              metalness: 0.12
+            })
       );
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = -0.06;
@@ -1513,11 +1492,13 @@ GEO -- TEX --</div>
 
       const road = new THREE.Mesh(
         geometry,
-        new THREE.MeshStandardMaterial({
-          color: 0x343b43,
-          roughness: 0.62,
-          metalness: 0.06
-        })
+        isMobile
+          ? new THREE.MeshBasicMaterial({ color: 0x343b43 })
+          : new THREE.MeshStandardMaterial({
+              color: 0x343b43,
+              roughness: 0.62,
+              metalness: 0.06
+            })
       );
       road.receiveShadow = currentQuality().shadows;
       scene.add(road);
@@ -1602,7 +1583,9 @@ GEO -- TEX --</div>
     }
 
     function addLabWalls() {
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0x162839, roughness: 0.52, metalness: 0.28 });
+      const wallMat = isMobile
+        ? new THREE.MeshBasicMaterial({ color: 0x162839 })
+        : new THREE.MeshStandardMaterial({ color: 0x162839, roughness: 0.52, metalness: 0.28 });
       const back = new THREE.Mesh(new THREE.BoxGeometry(96, 18, 1.4), wallMat);
       back.position.set(0, 8.9, 38);
       back.receiveShadow = currentQuality().shadows;
@@ -1647,7 +1630,9 @@ GEO -- TEX --</div>
         const side = i % 2 ? 1 : -1;
         const cone = new THREE.Mesh(
           new THREE.ConeGeometry(0.45, 1.1, 12),
-          new THREE.MeshStandardMaterial({ color: 0xffb13d, roughness: 0.55 })
+          isMobile
+            ? new THREE.MeshBasicMaterial({ color: 0xffb13d })
+            : new THREE.MeshStandardMaterial({ color: 0xffb13d, roughness: 0.55 })
         );
         cone.position.copy(sample.point).addScaledVector(normal, side * (roadWidth / 2 + 1.4));
         cone.position.y = 0.58;
@@ -1935,10 +1920,10 @@ GEO -- TEX --</div>
       audio.play("ui");
       prepareSelectionScene();
       state.phase = "countdown";
-      state.countdown = isMobile ? MOBILE_COUNTDOWN_DURATION : 3;
+      state.countdown = 3;
       ui.selectScreen.classList.add("hidden");
       ui.goal.classList.add("hidden");
-      ui.countdown.firstElementChild.textContent = isMobile ? "3" : "3";
+      ui.countdown.firstElementChild.textContent = "3";
       ui.countdown.classList.remove("hidden");
       resetRaceRuntime();
       audio.startRace();
@@ -1952,6 +1937,7 @@ GEO -- TEX --</div>
         if (!obj.isMesh) return;
         obj.castShadow = currentQuality().shadows;
         obj.receiveShadow = currentQuality().shadows;
+        if (isMobile) obj.material = simplifyMaterialForMobile(obj.material);
         optimizeMeshForQuality(obj);
       });
       logAssetStats(path, root);
@@ -2028,9 +2014,10 @@ GEO -- TEX --</div>
     function cloneMaterials(root) {
       root.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
-        obj.material = Array.isArray(obj.material)
+        const cloned = Array.isArray(obj.material)
           ? obj.material.map((mat) => mat ? mat.clone() : mat)
           : obj.material.clone();
+        obj.material = isMobile ? simplifyMaterialForMobile(cloned) : cloned;
         optimizeMeshForQuality(obj);
       });
     }
@@ -2047,6 +2034,27 @@ GEO -- TEX --</div>
         });
         mat.needsUpdate = true;
       });
+    }
+
+    function simplifyMaterialForMobile(material) {
+      if (Array.isArray(material)) return material.map((mat) => simplifyMaterialForMobile(mat));
+      if (!material || !currentQuality().basicMaterials) return material;
+      if (material.isMeshBasicMaterial) return material;
+      const map = material.map ? makeMobileTexture(material.map) : null;
+      const alphaMap = material.alphaMap ? makeMobileTexture(material.alphaMap) : null;
+      const basic = new THREE.MeshBasicMaterial({
+        color: material.color ? material.color.clone() : new THREE.Color(0xffffff),
+        map,
+        alphaMap,
+        side: material.side,
+        transparent: Boolean(material.transparent && material.opacity < 1),
+        opacity: material.opacity ?? 1,
+        alphaTest: material.alphaTest || 0
+      });
+      basic.name = material.name;
+      basic.depthWrite = material.depthWrite;
+      basic.depthTest = material.depthTest;
+      return basic;
     }
 
     function makeMobileTexture(texture) {
@@ -2547,23 +2555,9 @@ GEO -- TEX --</div>
       // Pointer and keyboard handlers update `keys` directly; this section verifies input has no hidden per-frame work.
     }
 
-    function updateCountdownDisplay() {
-      const text = isMobile
-        ? mobileCountdownText()
-        : (state.countdown > 0.55 ? Math.ceil(state.countdown) : "GO!");
-      const target = ui.countdown.firstElementChild;
-      if (target.textContent !== text) target.textContent = text;
-    }
-
-    function mobileCountdownText() {
-      if (state.countdown <= MOBILE_COUNTDOWN_GO_TIME) return "GO!";
-      const remaining = state.countdown - MOBILE_COUNTDOWN_GO_TIME;
-      return String(clamp(Math.ceil(remaining / 0.55), 1, 3));
-    }
-
     function update(dt) {
       syncMobileUiState();
-      if (state.phase === "race" || (!isMobile && state.phase === "countdown")) {
+      if (state.phase === "countdown" || state.phase === "race") {
         state.sceneElapsed += dt;
         if (!PERF_TEST.disableAllEffects && (!isMobile || state.sceneElapsed >= currentQuality().sceneInterval)) {
           const sceneDt = state.sceneElapsed;
@@ -2573,7 +2567,10 @@ GEO -- TEX --</div>
       }
       if (state.phase === "countdown") {
         state.countdown -= dt;
-        measureSection("countDom", updateCountdownDisplay);
+        const countText = state.countdown > 0.55 ? Math.ceil(state.countdown) : "GO!";
+        if (ui.countdown.firstElementChild.textContent !== String(countText)) {
+          ui.countdown.firstElementChild.textContent = countText;
+        }
         if (state.countdown <= 0) {
           state.phase = "race";
           ui.countdown.classList.add("hidden");
@@ -2619,7 +2616,7 @@ GEO -- TEX --</div>
       measureSection("audio", () => audio.updateEngine(player.speed, state.phase === "race"));
       if (!PERF_TEST.disableAllEffects && (state.phase === "race" || particles.length)) measureSection("particles", () => updateParticles(dt));
       state.cameraElapsed += dt;
-      if (state.phase !== "countdown" && !PERF_TEST.freezeCamera && (!isMobile || state.cameraElapsed >= currentQuality().cameraInterval)) {
+      if (!PERF_TEST.freezeCamera && (!isMobile || state.cameraElapsed >= currentQuality().cameraInterval)) {
         const cameraDt = state.cameraElapsed;
         state.cameraElapsed = 0;
         measureSection("camera", () => updateCamera(cameraDt));
