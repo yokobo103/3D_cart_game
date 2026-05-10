@@ -642,6 +642,30 @@
       .selectFooter { grid-template-columns: 1fr; }
       .startButton { width: 100%; }
 
+      body.isMobile .countdown {
+        inset: 0;
+        place-items: center;
+        background: transparent;
+        contain: layout paint style;
+      }
+
+      body.isMobile .count {
+        min-width: 112px;
+        padding: 8px 14px;
+        border: 1px solid rgba(120, 229, 255, 0.36);
+        border-radius: 8px;
+        background: #06111d;
+        color: #ffd844;
+        font-size: 54px;
+        line-height: 1;
+        font-weight: 1000;
+        -webkit-text-stroke: 0;
+        text-shadow: none;
+        box-shadow: none;
+        filter: none;
+        transform: none;
+      }
+
       body.isMobile.isDriving .mobileControls {
         position: fixed;
         inset: auto 0 0 0;
@@ -1022,6 +1046,8 @@ GEO -- TEX --</div>
         sceneInterval: 0.1
       }
     };
+    const MOBILE_COUNTDOWN_DURATION = 2.1;
+    const MOBILE_COUNTDOWN_GO_TIME = 0.45;
     const perfState = {
       element: null,
       frameCount: 0,
@@ -1140,6 +1166,12 @@ GEO -- TEX --</div>
       cameraElapsed: 0,
       winner: null,
       notice: 0
+    };
+    const phaseStats = {
+      machineSelect: createPhaseStats(),
+      countdown: createPhaseStats(),
+      racing: createPhaseStats(),
+      paused: createPhaseStats()
     };
 
     const scene = new THREE.Scene();
@@ -1903,9 +1935,10 @@ GEO -- TEX --</div>
       audio.play("ui");
       prepareSelectionScene();
       state.phase = "countdown";
-      state.countdown = 3;
+      state.countdown = isMobile ? MOBILE_COUNTDOWN_DURATION : 3;
       ui.selectScreen.classList.add("hidden");
       ui.goal.classList.add("hidden");
+      ui.countdown.firstElementChild.textContent = isMobile ? "3" : "3";
       ui.countdown.classList.remove("hidden");
       resetRaceRuntime();
       audio.startRace();
@@ -2352,6 +2385,7 @@ GEO -- TEX --</div>
           `DT ${(perfState.deltaTime * 1000).toFixed(0)} MAX ${(perfState.maxDeltaTime * 1000).toFixed(0)}`,
           `CALL ${info.drawCalls} TRI ${info.triangles}`,
           `GEO ${info.geometries} TEX ${info.textures} RS ${getMobileRenderScale()}`,
+          formatPhaseStats(),
           perfState.sectionDisplay
         ].join("\n");
       }
@@ -2390,6 +2424,50 @@ GEO -- TEX --</div>
       };
     }
 
+    function createPhaseStats() {
+      return { frames: 0, elapsed: 0, wait: 0, render: 0, ui: 0, fps: 0, waitAvg: 0, renderAvg: 0, uiAvg: 0 };
+    }
+
+    function currentPhaseKey() {
+      if (!isPageVisible) return "paused";
+      if (state.phase === "select") return "machineSelect";
+      if (state.phase === "countdown") return "countdown";
+      if (state.phase === "race") return "racing";
+      return "paused";
+    }
+
+    function recordPhaseStats(rawDt) {
+      if (!isMobile || !SHOW_PERF_OVERLAY) return;
+      const stats = phaseStats[currentPhaseKey()];
+      stats.frames += 1;
+      stats.elapsed += rawDt;
+      stats.wait += perfState.rafWaitMs;
+      stats.render += perfState.sections.render?.average || 0;
+      stats.ui += perfState.sections.ui?.average || 0;
+      if (stats.elapsed >= 1) {
+        stats.fps = stats.frames / stats.elapsed;
+        stats.waitAvg = stats.wait / stats.frames;
+        stats.renderAvg = stats.render / stats.frames;
+        stats.uiAvg = stats.ui / stats.frames;
+        stats.frames = 0;
+        stats.elapsed = 0;
+        stats.wait = 0;
+        stats.render = 0;
+        stats.ui = 0;
+      }
+    }
+
+    function formatPhaseStats() {
+      const select = phaseStats.machineSelect;
+      const count = phaseStats.countdown;
+      const race = phaseStats.racing;
+      return [
+        `SEL ${select.fps.toFixed(0)} W${select.waitAvg.toFixed(0)} R${select.renderAvg.toFixed(1)} U${select.uiAvg.toFixed(1)}`,
+        `CNT ${count.fps.toFixed(0)} W${count.waitAvg.toFixed(0)} R${count.renderAvg.toFixed(1)} U${count.uiAvg.toFixed(1)}`,
+        `RAC ${race.fps.toFixed(0)} W${race.waitAvg.toFixed(0)} R${race.renderAvg.toFixed(1)} U${race.uiAvg.toFixed(1)}`
+      ].join("\n");
+    }
+
     function measureSection(name, fn) {
       if (!isMobile || !SHOW_PERF_OVERLAY || state.phase !== "race") return fn();
       const start = performance.now();
@@ -2416,6 +2494,7 @@ GEO -- TEX --</div>
       perfState.frameCount += 1;
       perfState.deltaTime = dt;
       perfState.maxDeltaTime = Math.max(perfState.maxDeltaTime, rawDelta);
+      recordPhaseStats(rawDelta);
     }
 
     function flushPerfSections() {
@@ -2468,9 +2547,23 @@ GEO -- TEX --</div>
       // Pointer and keyboard handlers update `keys` directly; this section verifies input has no hidden per-frame work.
     }
 
+    function updateCountdownDisplay() {
+      const text = isMobile
+        ? mobileCountdownText()
+        : (state.countdown > 0.55 ? Math.ceil(state.countdown) : "GO!");
+      const target = ui.countdown.firstElementChild;
+      if (target.textContent !== text) target.textContent = text;
+    }
+
+    function mobileCountdownText() {
+      if (state.countdown <= MOBILE_COUNTDOWN_GO_TIME) return "GO!";
+      const remaining = state.countdown - MOBILE_COUNTDOWN_GO_TIME;
+      return String(clamp(Math.ceil(remaining / 0.55), 1, 3));
+    }
+
     function update(dt) {
       syncMobileUiState();
-      if (state.phase === "countdown" || state.phase === "race") {
+      if (state.phase === "race" || (!isMobile && state.phase === "countdown")) {
         state.sceneElapsed += dt;
         if (!PERF_TEST.disableAllEffects && (!isMobile || state.sceneElapsed >= currentQuality().sceneInterval)) {
           const sceneDt = state.sceneElapsed;
@@ -2480,7 +2573,7 @@ GEO -- TEX --</div>
       }
       if (state.phase === "countdown") {
         state.countdown -= dt;
-        ui.countdown.firstElementChild.textContent = state.countdown > 0.55 ? Math.ceil(state.countdown) : "GO!";
+        measureSection("countDom", updateCountdownDisplay);
         if (state.countdown <= 0) {
           state.phase = "race";
           ui.countdown.classList.add("hidden");
@@ -2526,7 +2619,7 @@ GEO -- TEX --</div>
       measureSection("audio", () => audio.updateEngine(player.speed, state.phase === "race"));
       if (!PERF_TEST.disableAllEffects && (state.phase === "race" || particles.length)) measureSection("particles", () => updateParticles(dt));
       state.cameraElapsed += dt;
-      if (!PERF_TEST.freezeCamera && (!isMobile || state.cameraElapsed >= currentQuality().cameraInterval)) {
+      if (state.phase !== "countdown" && !PERF_TEST.freezeCamera && (!isMobile || state.cameraElapsed >= currentQuality().cameraInterval)) {
         const cameraDt = state.cameraElapsed;
         state.cameraElapsed = 0;
         measureSection("camera", () => updateCamera(cameraDt));
