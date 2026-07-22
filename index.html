@@ -180,6 +180,7 @@
       inset: 0;
       z-index: 10;
       padding: 18px 24px 20px;
+      overflow: auto;
       background:
         radial-gradient(circle at 50% 34%, rgba(67, 221, 255, 0.13), transparent 34%),
         linear-gradient(180deg, rgba(2, 9, 16, 0.34), rgba(2, 9, 16, 0.5));
@@ -194,6 +195,133 @@
       grid-template-rows: auto 1fr auto auto;
       gap: 14px;
     }
+
+    .courseScreen {
+      overflow: auto;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(255, 216, 68, 0.16), transparent 30%),
+        radial-gradient(circle at 18% 65%, rgba(67, 221, 255, 0.13), transparent 34%),
+        linear-gradient(180deg, rgba(2, 9, 16, 0.76), rgba(2, 9, 16, 0.9));
+    }
+
+    .courseSelectBox {
+      width: min(1320px, 100%);
+      min-height: calc(100vh - 38px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 22px;
+    }
+
+    .courseGrid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .courseCard {
+      position: relative;
+      min-width: 0;
+      padding: 0;
+      overflow: hidden;
+      border: 2px solid rgba(105, 226, 255, 0.28);
+      border-radius: 18px;
+      background: rgba(5, 17, 28, 0.88);
+      color: white;
+      text-align: left;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.32);
+      transform: translateY(0);
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .courseCard:hover,
+    .courseCard:focus-visible {
+      transform: translateY(-5px);
+      border-color: var(--cyan);
+      box-shadow: 0 20px 42px rgba(0, 0, 0, 0.42), 0 0 26px rgba(67, 221, 255, 0.2);
+      outline: none;
+    }
+
+    .courseCard.isSelected {
+      border-color: var(--gold);
+      box-shadow: inset 0 0 0 2px rgba(255, 216, 68, 0.18), 0 0 30px rgba(255, 216, 68, 0.3);
+    }
+
+    .courseThumb {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      background: #0a1b29;
+    }
+
+    .courseThumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 300ms ease;
+    }
+
+    .courseCard:hover .courseThumb img { transform: scale(1.04); }
+
+    .courseCheck {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: none;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--gold);
+      color: #111827;
+      font-size: 12px;
+      font-weight: 1000;
+    }
+
+    .courseCard.isSelected .courseCheck { display: block; }
+
+    .courseCardBody { padding: 16px; }
+
+    .courseCard h2 {
+      margin: 0;
+      color: #fff8da;
+      font-size: clamp(21px, 2vw, 30px);
+      line-height: 1.05;
+    }
+
+    .courseCard p {
+      min-height: 3em;
+      margin: 9px 0 14px;
+      color: #bfeaf5;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.5;
+    }
+
+    .courseMeta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(120, 229, 255, 0.18);
+      color: #e8fbff;
+      font-size: 12px;
+      font-weight: 1000;
+    }
+
+    .courseFooter {
+      display: grid;
+      grid-template-columns: 1fr minmax(280px, 420px) 1fr;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .courseFooterHint {
+      color: #9eddf0;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .courseConfirm { grid-column: 2; }
 
     .selectHeader {
       text-align: center;
@@ -451,6 +579,33 @@
       gap: 10px;
     }
 
+    .machineChoices {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .machineChoices .choice {
+      min-height: 64px;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      text-align: center;
+      padding: 8px 6px;
+    }
+
+    .machineType {
+      color: #8fdef2;
+      font-size: 10px;
+      font-weight: 1000;
+      letter-spacing: 0.12em;
+    }
+
+    .colorHeading {
+      margin-top: 2px !important;
+    }
+
     .colorChoices .choice {
       min-height: 116px;
       display: grid;
@@ -514,6 +669,16 @@
     .courseInfo dd {
       margin: 0;
       text-align: right;
+    }
+
+    .courseSelect {
+      background: rgba(9, 28, 44, 0.9);
+      color: #eaf6ff;
+      border: 1px solid rgba(67, 221, 255, 0.4);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 14px;
+      max-width: 180px;
     }
 
     .selectFooter {
@@ -704,7 +869,13 @@
       .racerCard { padding: 12px; }
       .colorChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .colorChoices .choice { min-height: 82px; }
+      .machineChoices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .startButton { width: 100%; }
+      .courseGrid { grid-template-columns: 1fr; }
+      .courseSelectBox { min-height: calc(100vh - 16px); justify-content: flex-start; }
+      .courseFooter { grid-template-columns: 1fr; }
+      .courseConfirm { grid-column: 1; }
+      .courseFooterHint { text-align: center; }
 
       body.isMobile.isDriving .mobileControls {
         position: fixed;
@@ -927,11 +1098,26 @@ GEO -- TEX --</div>
     </div>
   </div>
 
+  <section class="selectScreen courseScreen hidden" id="courseScreen">
+    <div class="courseSelectBox">
+      <div class="selectHeader">
+        <h1>コースセレクト</h1>
+        <p>走りたいコースを選んでグランプリへ！</p>
+      </div>
+      <div class="courseGrid" id="courseGrid" role="group" aria-label="コース一覧"></div>
+      <div class="courseFooter">
+        <button class="backButton" id="backToMachine" type="button">マシン選択にもどる</button>
+        <button class="startButton courseConfirm" id="confirmCourse" type="button">このコースでレース！</button>
+        <div class="courseFooterHint">カードをクリックしてコースを選択</div>
+      </div>
+    </div>
+  </section>
+
   <section class="selectScreen" id="selectScreen">
     <div class="selectBox">
       <div class="selectHeader">
         <h1>マシンセレクト</h1>
-        <p>キャラクターとカートカラーを選んでスタート</p>
+        <p>キャラクターとマシン、カラーを選んでスタート</p>
       </div>
       <div class="selectStage">
         <section class="glassCard racerCard">
@@ -956,17 +1142,22 @@ GEO -- TEX --</div>
 
       <div class="colorDock">
         <section class="glassCard selectGroup">
-          <h2>1P カートカラー</h2>
+          <h2>1P マシン</h2>
+          <div class="machineChoices" id="playerMachineChoices"></div>
+          <h2 class="colorHeading">カラー</h2>
           <div class="colorChoices" id="playerColorChoices"></div>
         </section>
         <section class="glassCard selectGroup">
-          <h2>CPU カートカラー</h2>
+          <h2>CPU マシン</h2>
+          <div class="machineChoices" id="cpuMachineChoices"></div>
+          <h2 class="colorHeading">カラー</h2>
           <div class="colorChoices" id="cpuColorChoices"></div>
         </section>
         <section class="glassCard courseInfo">
           <h2>コース情報</h2>
           <dl>
-            <div><dt>コース</dt><dd>ラボサーキット</dd></div>
+            <div><dt>コース</dt><dd id="selectedCourseName">--</dd></div>
+            <div><dt>全長</dt><dd id="courseLength">--</dd></div>
             <div><dt>ラップ数</dt><dd>3</dd></div>
             <div><dt>アイテム</dt><dd>あり</dd></div>
           </dl>
@@ -976,7 +1167,7 @@ GEO -- TEX --</div>
       <div class="selectFooter">
         <button class="backButton" id="backSelect" type="button">もどる</button>
         <div class="selectionSummary" id="selectionSummary"></div>
-        <button class="startButton" id="startRace" type="button">レーススタート！</button>
+        <button class="startButton" id="startRace" type="button">コース選択へ！</button>
       </div>
     </div>
   </section>
@@ -992,6 +1183,7 @@ GEO -- TEX --</div>
   <script type="module">
     import * as THREE from "three";
     import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
     const app = document.getElementById("app");
     const ui = {
@@ -1004,8 +1196,14 @@ GEO -- TEX --</div>
       goal: document.getElementById("goal"),
       goalText: document.getElementById("goalText"),
       restart: document.getElementById("restart"),
+      courseScreen: document.getElementById("courseScreen"),
+      courseGrid: document.getElementById("courseGrid"),
+      confirmCourse: document.getElementById("confirmCourse"),
+      backToMachine: document.getElementById("backToMachine"),
       selectScreen: document.getElementById("selectScreen"),
       characterChoices: document.getElementById("characterChoices"),
+      playerMachineChoices: document.getElementById("playerMachineChoices"),
+      cpuMachineChoices: document.getElementById("cpuMachineChoices"),
       playerColorChoices: document.getElementById("playerColorChoices"),
       cpuColorChoices: document.getElementById("cpuColorChoices"),
       difficultyChoices: document.getElementById("difficultyChoices"),
@@ -1123,11 +1321,106 @@ GEO -- TEX --</div>
     let isPageVisible = !document.hidden;
     document.body.classList.toggle("isMobile", isMobile);
     const totalLaps = 3;
-    const roadWidth = 7.2;
-    const trackPoints = [
+
+    // --- 生成コース読み込み（20260707サーキット生成パイプライン連携） ---
+    // courses/catalog.json にあるコースは ?course=名前 で選択できる。
+    // 未指定 or 読み込み失敗時は従来のラボサーキット。
+    // 注意: このゲームの物理は平面前提なので、コースは height_wave:0 でビルドしたもの限定。
+    const LAB_TRACK_POINTS = [
       [-25, 0], [-31, 12], [-24, 25], [-8, 30], [12, 29],
       [29, 20], [34, 4], [28, -13], [12, -25], [-10, -26], [-27, -18]
-    ].map(([x, z]) => new THREE.Vector3(x, 0, z));
+    ];
+    let courseCatalog = [];
+    try {
+      const res = await fetch("courses/catalog.json");
+      if (res.ok) courseCatalog = await res.json();
+    } catch (error) {
+      console.warn("courses/catalog.json が読めないためラボサーキットのみで起動", error);
+    }
+    const initialUrlParams = new URLSearchParams(location.search);
+    const requestedCourseKey = initialUrlParams.get("course") || "";
+    const shouldAutoStartRace = initialUrlParams.get("autorace") === "1";
+    const activeCourseEntry = courseCatalog.find((e) => e.name === requestedCourseKey) || null;
+    let courseWaypoints = null;
+    if (activeCourseEntry) {
+      try {
+        courseWaypoints = await fetch("courses/" + activeCourseEntry.waypoints).then((r) => r.json());
+      } catch (error) {
+        console.error("waypointsの読み込みに失敗。ラボサーキットで起動", error);
+      }
+    }
+
+    const COURSE_COPY = {
+      "": { label: "ラボサーキット", description: "ネオンが輝く研究所の定番テストコース", thumb: "assets/lab-track.png", tag: "STANDARD" },
+      kart_meadow: { label: "メドウガーデン", description: "草原と花畑を駆け抜ける爽やかな高速コース", tag: "NATURE" },
+      kart_canyon: { label: "キャニオンラッシュ", description: "切り立つ岩場を攻めるテクニカルコース", tag: "TECHNICAL" },
+      kart_city: { label: "ネオンシティ", description: "ビルと街路樹の間を縫うアーバンコース", tag: "CITY" }
+    };
+    let selectedCourseKey = courseWaypoints && activeCourseEntry ? activeCourseEntry.name : "";
+
+    function renderCourseSelect() {
+      const courses = [{ name: "", track_length_m: 201, track_width: 7.2, thumb: "assets/lab-track.png" }, ...courseCatalog];
+      ui.courseGrid.innerHTML = "";
+      for (const course of courses) {
+        const copy = COURSE_COPY[course.name] || {
+          label: course.name.replaceAll("_", " "),
+          description: "生成パイプラインから追加されたコース",
+          tag: "NEW"
+        };
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "courseCard";
+        button.dataset.course = course.name;
+        button.setAttribute("aria-pressed", String(course.name === selectedCourseKey));
+        const thumb = course.name ? `courses/${course.thumb}` : copy.thumb;
+        button.innerHTML = `
+          <div class="courseThumb"><img src="${thumb}" alt="${copy.label}のプレビュー"><span class="courseCheck">選択中</span></div>
+          <div class="courseCardBody">
+            <h2>${copy.label}</h2>
+            <p>${copy.description}</p>
+            <div class="courseMeta"><span>${Math.round(course.track_length_m)}m</span><span>${copy.tag}</span><span>3 LAPS</span></div>
+          </div>`;
+        button.addEventListener("click", () => {
+          selectedCourseKey = course.name;
+          audio.play("ui");
+          renderCourseSelect();
+        });
+        ui.courseGrid.appendChild(button);
+      }
+      ui.courseGrid.querySelectorAll(".courseCard").forEach((button) => {
+        button.classList.toggle("isSelected", button.dataset.course === selectedCourseKey);
+      });
+    }
+
+    function confirmCourseSelection() {
+      audio.play("ui");
+      const loadedCourseKey = courseWaypoints && activeCourseEntry ? activeCourseEntry.name : "";
+      if (selectedCourseKey !== loadedCourseKey) {
+        sessionStorage.setItem("yokoboKartSelection", JSON.stringify(selectionState));
+        const url = new URL(location.href);
+        if (selectedCourseKey) url.searchParams.set("course", selectedCourseKey);
+        else url.searchParams.delete("course");
+        url.searchParams.set("autorace", "1");
+        location.href = url.toString();
+        return;
+      }
+      ui.courseScreen.classList.add("hidden");
+      startRace();
+    }
+
+    function showCourseSelection() {
+      audio.play("ui");
+      ui.selectScreen.classList.add("hidden");
+      ui.courseScreen.classList.remove("hidden");
+      renderCourseSelect();
+    }
+
+    const roadWidth = courseWaypoints ? courseWaypoints.track_width : 7.2;
+    const trackPoints = courseWaypoints
+      ? courseWaypoints.waypoints.map(([x, y, z]) => new THREE.Vector3(x, 0, z))
+      : LAB_TRACK_POINTS.map(([x, z]) => new THREE.Vector3(x, 0, z));
+    document.getElementById("selectedCourseName").textContent =
+      (COURSE_COPY[selectedCourseKey] || {}).label || selectedCourseKey;
     const KART_MODEL_FORWARD_OFFSET = -Math.PI / 2;
     const CHARACTER_MODELS = {
       yokobo: {
@@ -1160,12 +1453,41 @@ GEO -- TEX --</div>
       }
     };
     const KART_COLORS = {
-      yokoboDefault: { label: "ホワイト", body_color: null, accent_color: null },
+      yokoboDefault: { label: "オリジナル", body_color: null, accent_color: null },
       nyabittoMint: { label: "グリーン", body_color: "#A8E6C1", accent_color: "#6FCF97" },
       yellow: { label: "イエロー", body_color: "#F2C94C", accent_color: "#D9A93A" },
       pink: { label: "ピンク", body_color: "#F299C1", accent_color: "#D97FA8" },
       grayOrange: { label: "グレー", body_color: "#B5B8BE", accent_color: "#F2994A" },
       blueStrong: { label: "ブルー", body_color: "#6BAAD6", accent_color: "#4F8FB8" }
+    };
+    const KART_MODELS = {
+      standard: {
+        label: "ラボカート",
+        type: "STANDARD",
+        path: "assets/3D_car_plane.glb",
+        targetLength: 3.7,
+        driverSeat: new THREE.Vector3(0.2, 0.72, -0.54),
+        bodyMaterials: ["body_color"],
+        accentMaterials: ["accent_color"]
+      },
+      motorbike: {
+        label: "ローポリバイク",
+        type: "BIKE",
+        path: "assets/lowpoly_motorbike.glb",
+        targetLength: 3.7,
+        driverSeat: new THREE.Vector3(0.57, 1.42, 0),
+        bodyMaterials: ["mat_04"],
+        accentMaterials: ["mat_02"]
+      },
+      lowpolyKart: {
+        label: "ローポリカート",
+        type: "KART",
+        path: "assets/lowpoly_kart.glb",
+        targetLength: 3.7,
+        driverSeat: new THREE.Vector3(0.47, 0.8, 0),
+        bodyMaterials: ["mat_01"],
+        accentMaterials: ["mat_00"]
+      }
     };
     const DIFFICULTIES = {
       normal: { label: "ノーマル", push: 0.72, minDrag: 0.965, maxDrag: 0.99, dragPerMeter: 0.012 },
@@ -1187,8 +1509,13 @@ GEO -- TEX --</div>
       rocket: { label: "ミサイル", image: "assets/item-rocket.png", color: "#ff8b3d", glow: "rgba(255, 139, 61, 0.42)" },
       none: { label: "なし", image: null, color: "#dffaff", glow: "rgba(67, 221, 255, 0.18)" }
     };
+    const COURSE_BGM = {
+      kart_meadow: "assets/bgm/ace_step_v1_5/bgm15_kart_meadow_v1.ogg",
+      kart_canyon: "assets/bgm/ace_step_v1_5/bgm15_kart_canyon_v1.ogg",
+      kart_city: "assets/bgm/ace_step_v1_5/bgm15_kart_city_v1.ogg"
+    };
     const AUDIO_ASSETS = {
-      bgm: "assets/bgm/bgm_3d_cart.ogg",
+      bgm: COURSE_BGM[selectedCourseKey] || "assets/bgm/bgm_3d_cart.ogg",
       boost: "assets/se/SE_boost.ogg",
       clear: "assets/se/SE_clear.ogg",
       engine: "assets/se/SE_engine.ogg",
@@ -1200,10 +1527,20 @@ GEO -- TEX --</div>
     };
     const selectionState = {
       selectedCharacter: "yokobo",
+      selectedPlayerMachine: "standard",
+      selectedCpuMachine: "standard",
       selectedPlayerKartColor: "yokoboDefault",
       selectedCpuKartColor: "nyabittoMint",
       selectedDifficulty: "normal"
     };
+    if (shouldAutoStartRace) {
+      try {
+        const savedSelection = JSON.parse(sessionStorage.getItem("yokoboKartSelection") || "null");
+        if (savedSelection) Object.assign(selectionState, savedSelection);
+      } catch (error) {
+        console.warn("保存したマシン設定を復元できませんでした", error);
+      }
+    }
 
     const state = {
       phase: "select",
@@ -1282,24 +1619,50 @@ GEO -- TEX --</div>
     const curve = new THREE.CatmullRomCurve3(trackPoints, true, "centripetal", 0.32);
     const samples = buildSamples(curve, 520);
     const trackLength = samples[samples.length - 1].distance;
+    document.getElementById("courseLength").textContent = `${Math.round(trackLength)}m`;
     const gltfLoader = new GLTFLoader();
-    let kartTemplate = null;
+    gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+
+    // 生成コースのGLB世界（地形＋縁石つき路面）。読み込めたらラボ内装の代わりに敷く
+    let courseWorld = null;
+    if (activeCourseEntry && courseWaypoints && activeCourseEntry.file) {
+      try {
+        const gltf = await gltfLoader.loadAsync("courses/" + activeCourseEntry.file);
+        courseWorld = gltf.scene;
+        courseWorld.traverse((o) => {
+          if (o.isMesh) o.receiveShadow = currentQuality().shadows;
+        });
+        // 屋外コースなので昼の空・霧に切り替え
+        const sky = new THREE.Color(0x87b5e3);
+        scene.background = sky;
+        if (scene.fog) scene.fog = new THREE.Fog(sky, 55, 170);
+        hemi.color.set(0xdfefff);
+        hemi.groundColor.set(0x4a5a40);
+      } catch (error) {
+        console.error("コースGLBの読み込みに失敗（道路だけで走ります）", error);
+      }
+    }
+    const kartTemplates = {};
     let rocketTemplate = null;
     const characterTemplates = {};
-    try {
-      kartTemplate = await loadKartTemplate("assets/3D_car_plane.glb");
-    } catch (error) {
-      console.error("Failed to load 3D_car_plane.glb", error);
-      ui.hint.textContent = "GLBの読み込みに失敗しました。ローカルサーバー経由で開いてください。フォールバック表示で起動します。";
-    }
+    await Promise.all(Object.entries(KART_MODELS).map(async ([key, config]) => {
+      try {
+        kartTemplates[key] = await loadKartTemplate(config.path);
+      } catch (error) {
+        console.error(`Failed to load ${config.path}`, error);
+        if (key === "standard") {
+          ui.hint.textContent = "GLBの読み込みに失敗しました。ローカルサーバー経由で開いてください。フォールバック表示で起動します。";
+        }
+      }
+    }));
     try {
       rocketTemplate = await loadKartTemplate("assets/rocket.glb");
     } catch (error) {
       console.error("Failed to load rocket.glb", error);
     }
     await loadCharacterTemplates();
-    const player = makeKart("Dr.よこぼ", false, "yokobo", "yokoboDefault");
-    const rival = makeKart("ニャビット", true, "nyabitto", "nyabittoMint");
+    const player = makeKart("Dr.よこぼ", false, "yokobo", "standard", "yokoboDefault");
+    const rival = makeKart("ニャビット", true, "nyabitto", "standard", "nyabittoMint");
 
     const items = [];
     const traps = [];
@@ -1313,6 +1676,7 @@ GEO -- TEX --</div>
     const tempCameraLookAt = new THREE.Vector3();
 
     buildWorld();
+    renderCourseSelect();
     initSelectScreen();
     prepareSelectionScene();
     initPerfOverlay();
@@ -1335,10 +1699,20 @@ GEO -- TEX --</div>
     });
     window.addEventListener("keyup", (event) => keys.delete(event.key));
     ui.restart.addEventListener("click", reset);
-    ui.startRace.addEventListener("click", startRace);
+    ui.confirmCourse.addEventListener("click", confirmCourseSelection);
+    ui.startRace.addEventListener("click", showCourseSelection);
+    ui.backToMachine.addEventListener("click", () => {
+      audio.play("ui");
+      ui.courseScreen.classList.add("hidden");
+      ui.selectScreen.classList.remove("hidden");
+      prepareSelectionScene();
+      renderSelectScreen();
+    });
     ui.backSelect.addEventListener("click", () => {
       audio.play("ui");
       selectionState.selectedCharacter = "yokobo";
+      selectionState.selectedPlayerMachine = "standard";
+      selectionState.selectedCpuMachine = "standard";
       selectionState.selectedPlayerKartColor = "yokoboDefault";
       selectionState.selectedCpuKartColor = "nyabittoMint";
       selectionState.selectedDifficulty = "normal";
@@ -1346,6 +1720,14 @@ GEO -- TEX --</div>
       prepareSelectionScene();
     });
     installMobileControls();
+
+    if (shouldAutoStartRace) {
+      sessionStorage.removeItem("yokoboKartSelection");
+      const cleanUrl = new URL(location.href);
+      cleanUrl.searchParams.delete("autorace");
+      history.replaceState(null, "", cleanUrl);
+      startRace();
+    }
 
     if (typeof mobileQuery.addEventListener === "function") {
       mobileQuery.addEventListener("change", updateMobileMode);
@@ -1547,11 +1929,18 @@ GEO -- TEX --</div>
 
     function buildWorld() {
       if (!isMobile || !PERF_TEST.carOnly) {
-        addFloor();
-        addTrack();
-        addLabWalls();
-        addLabProps();
-        addItems();
+        if (courseWorld) {
+          // 生成コース: GLBの地形が床・壁・小道具の代わり
+          scene.add(courseWorld);
+          addTrack();
+          addItems();
+        } else {
+          addFloor();
+          addTrack();
+          addLabWalls();
+          addLabProps();
+          addItems();
+        }
       }
       scene.add(player.group, rival.group);
       buildPreviewWorld();
@@ -1869,7 +2258,7 @@ GEO -- TEX --</div>
       return slime;
     }
 
-    function makeKart(name, isAI, characterKey, colorKey) {
+    function makeKart(name, isAI, characterKey, machineKey, colorKey) {
       const group = new THREE.Group();
       group.matrixAutoUpdate = true;
       const kart = {
@@ -1877,6 +2266,7 @@ GEO -- TEX --</div>
         isAI,
         group,
         characterKey,
+        machineKey,
         colorKey,
         x: 0,
         z: 0,
@@ -1902,7 +2292,7 @@ GEO -- TEX --</div>
         lapElapsed: 0,
         finished: false
       };
-      setKartLoadout(kart, characterKey, colorKey);
+      setKartLoadout(kart, characterKey, machineKey, colorKey);
       return kart;
     }
 
@@ -1925,6 +2315,12 @@ GEO -- TEX --</div>
 
       ui.playerColorChoices.innerHTML = "";
       ui.cpuColorChoices.innerHTML = "";
+      ui.playerMachineChoices.innerHTML = "";
+      ui.cpuMachineChoices.innerHTML = "";
+      Object.entries(KART_MODELS).forEach(([key, machine]) => {
+        ui.playerMachineChoices.appendChild(makeMachineChoiceButton(key, machine, "player"));
+        ui.cpuMachineChoices.appendChild(makeMachineChoiceButton(key, machine, "cpu"));
+      });
       Object.entries(KART_COLORS).forEach(([key, color]) => {
         ui.playerColorChoices.appendChild(makeColorChoiceButton(key, color, "player"));
         ui.cpuColorChoices.appendChild(makeColorChoiceButton(key, color, "cpu"));
@@ -1946,6 +2342,26 @@ GEO -- TEX --</div>
       });
 
       renderSelectScreen();
+    }
+
+    function makeMachineChoiceButton(key, machine, target) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "choice";
+      button.dataset.machine = key;
+      button.dataset.target = target;
+      button.innerHTML = `<span class="choiceName">${machine.label}</span><span class="machineType">${machine.type}</span>`;
+      button.addEventListener("click", () => {
+        audio.play("ui");
+        if (target === "player") {
+          selectionState.selectedPlayerMachine = key;
+        } else {
+          selectionState.selectedCpuMachine = key;
+        }
+        renderSelectScreen();
+        prepareSelectionScene();
+      });
+      return button;
     }
 
     function makeColorChoiceButton(key, color, target) {
@@ -1982,6 +2398,12 @@ GEO -- TEX --</div>
       ui.cpuColorChoices.querySelectorAll("[data-color]").forEach((button) => {
         button.classList.toggle("isSelected", button.dataset.color === selectionState.selectedCpuKartColor);
       });
+      ui.playerMachineChoices.querySelectorAll("[data-machine]").forEach((button) => {
+        button.classList.toggle("isSelected", button.dataset.machine === selectionState.selectedPlayerMachine);
+      });
+      ui.cpuMachineChoices.querySelectorAll("[data-machine]").forEach((button) => {
+        button.classList.toggle("isSelected", button.dataset.machine === selectionState.selectedCpuMachine);
+      });
       ui.difficultyChoices.querySelectorAll("[data-difficulty]").forEach((button) => {
         button.classList.toggle("isSelected", button.dataset.difficulty === selectionState.selectedDifficulty);
       });
@@ -1997,26 +2419,26 @@ GEO -- TEX --</div>
       ui.cpuSpecialText.textContent = cpuCharacter.specialText;
       renderStats(ui.playerStats, playerCharacter);
       renderStats(ui.cpuStats, cpuCharacter);
-      ui.previewBadge.textContent = `${playerCharacter.label} / ${KART_COLORS[selectionState.selectedPlayerKartColor].label}`;
-      updatePreviewModels(opponentCharacter, selectionState.selectedCpuKartColor);
+      ui.previewBadge.textContent = `${playerCharacter.label} / ${KART_MODELS[selectionState.selectedPlayerMachine].label} / ${KART_COLORS[selectionState.selectedPlayerKartColor].label}`;
+      updatePreviewModels(opponentCharacter, selectionState.selectedCpuMachine, selectionState.selectedCpuKartColor);
       ui.selectionSummary.textContent =
-        `Player: ${CHARACTERS[selectionState.selectedCharacter].label} / ${KART_COLORS[selectionState.selectedPlayerKartColor].label}   CPU: ${CHARACTERS[opponentCharacter].label} / ${KART_COLORS[selectionState.selectedCpuKartColor].label}   ${DIFFICULTIES[selectionState.selectedDifficulty].label}`;
+        `Player: ${CHARACTERS[selectionState.selectedCharacter].label} / ${KART_MODELS[selectionState.selectedPlayerMachine].label}   CPU: ${CHARACTERS[opponentCharacter].label} / ${KART_MODELS[selectionState.selectedCpuMachine].label}   ${DIFFICULTIES[selectionState.selectedDifficulty].label}`;
     }
 
-    function updatePreviewModels(opponentCharacter, opponentColor) {
+    function updatePreviewModels(opponentCharacter, opponentMachine, opponentColor) {
       if (previewPlayer) previewScene.remove(previewPlayer);
       if (previewRival) previewScene.remove(previewRival);
 
-      previewPlayer = makePreviewKart(selectionState.selectedCharacter, selectionState.selectedPlayerKartColor, -1.7);
-      previewRival = makePreviewKart(opponentCharacter, opponentColor, 1.7);
+      previewPlayer = makePreviewKart(selectionState.selectedCharacter, selectionState.selectedPlayerMachine, selectionState.selectedPlayerKartColor, -1.7);
+      previewRival = makePreviewKart(opponentCharacter, opponentMachine, opponentColor, 1.7);
       previewScene.add(previewPlayer, previewRival);
     }
 
-    function makePreviewKart(characterKey, colorKey, x) {
+    function makePreviewKart(characterKey, machineKey, colorKey, x) {
       const group = new THREE.Group();
-      const model = makeKartModelInstance(colorKey);
+      const model = makeKartModelInstance(machineKey, colorKey);
       group.add(model);
-      const driver = makeDriverModelInstance(characterKey);
+      const driver = makeDriverModelInstance(characterKey, machineKey);
       group.add(driver);
       group.position.set(x, 0, 0);
       group.rotation.y = Math.PI / 2;
@@ -2037,8 +2459,8 @@ GEO -- TEX --</div>
 
     function prepareSelectionScene() {
       const opponentCharacter = getOpponentCharacter(selectionState.selectedCharacter);
-      setKartLoadout(player, selectionState.selectedCharacter, selectionState.selectedPlayerKartColor);
-      setKartLoadout(rival, opponentCharacter, selectionState.selectedCpuKartColor);
+      setKartLoadout(player, selectionState.selectedCharacter, selectionState.selectedPlayerMachine, selectionState.selectedPlayerKartColor);
+      setKartLoadout(rival, opponentCharacter, selectionState.selectedCpuMachine, selectionState.selectedCpuKartColor);
       placeKart(player, 0.018, 1.1);
       placeKart(rival, 0.003, -1.1);
       player.x = -1.75;
@@ -2060,6 +2482,7 @@ GEO -- TEX --</div>
       state.phase = "countdown";
       state.countdown = 3;
       ui.selectScreen.classList.add("hidden");
+      ui.courseScreen.classList.add("hidden");
       ui.goal.classList.add("hidden");
       ui.countdown.firstElementChild.textContent = "3";
       ui.countdown.classList.remove("hidden");
@@ -2105,7 +2528,7 @@ GEO -- TEX --</div>
       return found;
     }
 
-    function setKartLoadout(kart, characterKey, colorKey) {
+    function setKartLoadout(kart, characterKey, machineKey, colorKey) {
       if (kart.modelRoot) {
         kart.group.remove(kart.modelRoot);
       }
@@ -2118,14 +2541,15 @@ GEO -- TEX --</div>
       }
 
       kart.characterKey = characterKey;
+      kart.machineKey = machineKey;
       kart.colorKey = colorKey;
       kart.name = CHARACTERS[characterKey].label;
 
-      const model = makeKartModelInstance(colorKey);
+      const model = makeKartModelInstance(machineKey, colorKey);
       kart.group.add(model);
       kart.modelRoot = model;
 
-      const driver = makeDriverModelInstance(characterKey);
+      const driver = makeDriverModelInstance(characterKey, machineKey);
       kart.group.add(driver);
       kart.driverRoot = driver;
 
@@ -2138,14 +2562,16 @@ GEO -- TEX --</div>
       }
     }
 
-    function makeKartModelInstance(colorKey) {
-      if (!kartTemplate) return makeFallbackKartModel(colorKey);
+    function makeKartModelInstance(machineKey, colorKey) {
+      const machine = KART_MODELS[machineKey] || KART_MODELS.standard;
+      const template = kartTemplates[machineKey] || kartTemplates.standard;
+      if (!template) return makeFallbackKartModel(colorKey);
 
-      const root = kartTemplate.clone(true);
+      const root = template.clone(true);
       cloneMaterials(root);
-      applyKartColors(root, KART_COLORS[colorKey]);
+      applyKartColors(root, KART_COLORS[colorKey], machine);
 
-      normalizeKartModel(root);
+      normalizeKartModel(root, machine);
       return root;
     }
 
@@ -2260,19 +2686,21 @@ GEO -- TEX --</div>
       });
     }
 
-    function applyKartColors(root, colors) {
+    function applyKartColors(root, colors, machine = KART_MODELS.standard) {
       if (!colors) return;
+      const bodyNames = new Set(machine.bodyMaterials || []);
+      const accentNames = new Set(machine.accentMaterials || []);
       root.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
 
         const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
         materials.forEach((mat) => {
           if (!mat || !mat.color) return;
-          if (mat.name === "body_color" && colors.body_color) {
+          if (bodyNames.has(mat.name) && colors.body_color) {
             mat.color.set(colors.body_color);
             mat.needsUpdate = true;
           }
-          if (mat.name === "accent_color" && colors.accent_color) {
+          if (accentNames.has(mat.name) && colors.accent_color) {
             mat.color.set(colors.accent_color);
             mat.needsUpdate = true;
           }
@@ -2280,12 +2708,12 @@ GEO -- TEX --</div>
       });
     }
 
-    function normalizeKartModel(root) {
+    function normalizeKartModel(root, machine = KART_MODELS.standard) {
       const box = new THREE.Box3().setFromObject(root);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       const longest = Math.max(size.x, size.z, 0.001);
-      const targetLength = 3.7;
+      const targetLength = machine.targetLength || 3.7;
       const scale = targetLength / longest;
 
       root.scale.setScalar(scale);
@@ -2293,14 +2721,15 @@ GEO -- TEX --</div>
       root.rotation.y = KART_MODEL_FORWARD_OFFSET;
     }
 
-    function makeDriverModelInstance(characterKey) {
+    function makeDriverModelInstance(characterKey, machineKey = "standard") {
       const config = CHARACTER_MODELS[characterKey];
       const template = characterTemplates[characterKey];
+      const machine = KART_MODELS[machineKey] || KART_MODELS.standard;
       if (!config || !template) {
         const fallbackGroup = new THREE.Group();
         const fallback = characterKey === "nyabitto" ? makeRobotDriver() : makeCatDriver();
         fallback.rotation.y = KART_MODEL_FORWARD_OFFSET;
-        fallbackGroup.position.set(0, 1.55, -0.64);
+        fallbackGroup.position.copy(machine.driverSeat);
         fallbackGroup.add(fallback);
         return fallbackGroup;
       }
@@ -2309,7 +2738,7 @@ GEO -- TEX --</div>
       const root = template.clone(true);
       cloneMaterials(root);
       normalizeDriverModel(root, config);
-      group.position.copy(config.seat);
+      group.position.copy(machine.driverSeat);
       group.add(root);
       return group;
     }
@@ -3302,6 +3731,20 @@ GEO -- TEX --</div>
       camera.updateProjectionMatrix();
       resizeMainRenderer();
     }
+
+    // デバッグ・自動テスト用フック（生成コース連携の検証と、将来の3D化作業用）
+    window.__kart = {
+      get player() { return player; },
+      get rival() { return rival; },
+      get state() { return state; },
+      samples,
+      curve,
+      trackLength,
+      roadWidth,
+      courseWorld: () => courseWorld,
+      activeCourse: activeCourseEntry ? activeCourseEntry.name : "lab",
+      startRace,
+    };
   </script>
 </body>
 </html>

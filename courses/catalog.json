@@ -1,0 +1,63 @@
+﻿[
+    {
+        "name":  "kart_meadow",
+        "spec":  "kart_meadow",
+        "detail":  "mid",
+        "file":  "kart_meadow.glb",
+        "waypoints":  "kart_meadow.waypoints.json",
+        "thumb":  "kart_meadow.png",
+        "tris":  51549,
+        "size_kb":  802.1,
+        "track_length_m":  198.9,
+        "track_width":  8.0,
+        "extent_m":  118.9,
+        "qc":  {
+                   "status":  "pass",
+                   "warnings":  [
+
+                                ]
+               },
+        "generator_version":  1
+    },
+    {
+        "name":  "kart_canyon",
+        "spec":  "kart_canyon",
+        "detail":  "mid",
+        "file":  "kart_canyon.glb",
+        "waypoints":  "kart_canyon.waypoints.json",
+        "thumb":  "kart_canyon.png",
+        "tris":  43520,
+        "size_kb":  705.9,
+        "track_length_m":  217.2,
+        "track_width":  8.5,
+        "extent_m":  126.5,
+        "qc":  {
+                   "status":  "pass",
+                   "warnings":  [
+
+                                ]
+               },
+        "generator_version":  1
+    },
+    {
+        "name":  "kart_city",
+        "spec":  "kart_city",
+        "detail":  "mid",
+        "file":  "kart_city.glb",
+        "waypoints":  "kart_city.waypoints.json",
+        "thumb":  "kart_city.png",
+        "tris":  66768,
+        "size_kb":  352.5,
+        "track_length_m":  212.1,
+        "track_width":  9.0,
+        "extent_m":  135.8,
+        "props":  104,
+        "qc":  {
+                   "status":  "pass",
+                   "warnings":  [
+
+                                ]
+               },
+        "generator_version":  1
+    }
+]
